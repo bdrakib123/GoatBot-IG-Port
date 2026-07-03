@@ -47,6 +47,16 @@ class InstagramBot {
     this.startHealthServer();
     this.keepAlive();
 
+    process.on('unhandledRejection', (reason, promise) => {
+        logger.error('Unhandled Rejection at:', { promise, reason: reason?.stack || reason });
+    });
+
+    process.on('uncaughtException', (err) => {
+        logger.error('Uncaught Exception:', { error: err.message, stack: err.stack });
+        // Optionally exit if the error is fatal enough
+        // process.exit(1);
+    });
+
     try {
       await this.commandLoader.loadAll();
       await this.eventLoader.loadAll();
@@ -95,18 +105,18 @@ class InstagramBot {
         throw new Error('No credentials found. Please provide IG_COOKIES or set up account.txt / EMAIL & PASSWORD.');
     }
 
-    logger.info('Logging in with nkxica (Primary)...');
+    logger.info('LOGIN', 'Logging in with nkxica (Primary)...');
     try {
         this.nkxica = await loginNkxica(credentials);
-        logger.info('nkxica login successful');
+        logger.success('LOGIN', 'nkxica login successful');
     } catch (e) {
-        logger.error('nkxica login failed', { error: e.message });
-        logger.info('Attempting login with Instagram-FCA (Fallback)...');
+        logger.error('LOGIN', 'nkxica login failed', { error: e.message });
+        logger.info('LOGIN', 'Attempting login with Instagram-FCA (Fallback)...');
         try {
             this.fca = await loginFca(credentials, config.OPTIONS_FCA);
-            logger.info('Instagram-FCA login successful');
+            logger.success('LOGIN', 'Instagram-FCA login successful');
         } catch (fcaErr) {
-            logger.error('Instagram-FCA login failed', { error: fcaErr.message });
+            logger.error('LOGIN', 'Instagram-FCA login failed', { error: fcaErr.message });
             throw e;
         }
     }

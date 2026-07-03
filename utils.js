@@ -855,7 +855,11 @@ const utils = {
 		const minDelay = min || config.min || 500;
 		const maxDelay = max || config.max || 2000;
 		const delay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
-		return new Promise(resolve => setTimeout(resolve, delay));
+        if (config.enable !== false) {
+            log.debug('DELAY', `Waiting for ${delay}ms...`);
+            return new Promise(resolve => setTimeout(resolve, delay));
+        }
+        return Promise.resolve();
 	},
 
 	/**
@@ -896,7 +900,20 @@ const utils = {
 	 */
 	getStream: async (url, pathName, options = {}) => {
 		return await utils.withBackoff(() => utils.getStreamFromURL(url, pathName, options));
-	}
+	},
+
+    /**
+     * Extracts info from Instagram attachment
+     */
+    getAttachmentInfo: (attachment) => {
+        if (!attachment) return null;
+        return {
+            type: attachment.type,
+            url: attachment.url,
+            ID: attachment.ID || attachment.id || attachment.itemId,
+            filename: attachment.filename || attachment.name
+        };
+    }
 };
 
 module.exports = utils;

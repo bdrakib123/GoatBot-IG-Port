@@ -13,7 +13,6 @@ if (!fs.existsSync(logDir)) {
 
 let config = {};
 try {
-    // Correcting config path to use the bot's default config or the one in config/
     const configPath = path.join(process.cwd(), 'config', 'default.json');
     if (fs.existsSync(configPath)) {
         config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -53,8 +52,13 @@ const consoleFormat = winston.format.combine(
         const coloredLevel = colorFn(levelStr);
         const coloredTag = tag ? (colors.magenta ? colors.magenta(tagStr) : tagStr) : '';
 
+        // Filter out winston internal meta
         const metaEntries = Object.entries(meta).filter(([key]) => !['timestamp', 'level', 'tag', 'splat'].includes(key));
-        const metaStr = metaEntries.length ? `\n${colors.gray ? colors.gray(JSON.stringify(Object.fromEntries(metaEntries), null, 2)) : JSON.stringify(Object.fromEntries(metaEntries), null, 2)}` : '';
+        let metaStr = '';
+        if (metaEntries.length > 0) {
+            const cleanMeta = Object.fromEntries(metaEntries);
+            metaStr = `\n${colors.gray ? colors.gray(JSON.stringify(cleanMeta, null, 2)) : JSON.stringify(cleanMeta, null, 2)}`;
+        }
 
         return `${colors.gray ? colors.gray(timestamp) : timestamp} ${coloredLevel} ${coloredTag} ${message}${metaStr}`;
     })
@@ -72,8 +76,19 @@ class WebhookTransport extends winston.Transport {
     }
     log(info, callback) {
         if (this.url) {
+            const tagStr = info.tag ? `[${info.tag}] ` : '';
             axios.post(this.url, {
-                content: `**[${info.level.toUpperCase()}]** ${info.tag ? `[${info.tag}] ` : ''}${info.message}`
+                embeds: [{
+                    title: `${info.level.toUpperCase()} ${tagStr}`,
+                    description: info.message,
+                    timestamp: info.timestamp,
+                    color: info.level === 'error' ? 0xff0000 : (info.level === 'warn' ? 0xffff00 : 0x00ff00),
+                    fields: Object.entries(info).filter(([key]) => !['timestamp', 'level', 'tag', 'message', 'splat'].includes(key)).map(([key, value]) => ({
+                        name: key,
+                        value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+                        inline: true
+                    }))
+                }]
             }).catch(() => {});
         }
         callback();

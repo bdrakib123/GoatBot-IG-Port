@@ -64,18 +64,32 @@ module.exports = {
 
       if (!commandName) return;
 
-      const command = commandLoader.getCommand(commandName); if (command) logger.debug(`Executing command: ${commandName} for user: ${event.senderID}`);
+      let command = commandLoader.getCommand(commandName);
+
       if (!command) {
           // Alias check
           for (const [name, cmd] of commandLoader.commands) {
               if (cmd.config.aliases && cmd.config.aliases.includes(commandName)) {
-                  logger.debug(`Executing command alias: ${commandName} (target: ${cmd.config.name}) for user: ${event.senderID}`); return await this.executeCommand(cmd, { api, event, args, bot, commandName: cmd.config.name, logger, database, config, prefix });
+                  command = cmd;
+                  break;
               }
           }
-          return;
       }
 
-      await this.executeCommand(command, { api, event, args, bot, commandName, logger, database, config, prefix });
+      if (command) {
+          logger.debug('COMMAND', `Executing command: ${command.config.name} for user: ${event.senderID}`, { threadID: event.threadId, senderID: event.senderID });
+          await require('../utils.js').humanDelay();
+          await this.executeCommand(command, { api, event, args, bot, commandName: command.config.name, logger, database, config, prefix });
+      } else if (config.AI_FALLBACK?.enable) {
+          const aiCommandName = config.AI_FALLBACK.command || 'gpt';
+          const aiCommand = commandLoader.getCommand(aiCommandName);
+          if (aiCommand) {
+              logger.debug('AI_FALLBACK', `Routing to AI command: ${aiCommandName} for user: ${event.senderID}`, { threadID: event.threadId, senderID: event.senderID });
+              const aiArgs = event.body.slice(startsWithPrefix ? prefix.length : 0).trim().split(/ +/);
+              await require('../utils.js').humanDelay();
+              await this.executeCommand(aiCommand, { api, event, args: aiArgs, bot, commandName: aiCommandName, logger, database, config, prefix });
+          }
+      }
 
     } catch (e) {
       logger.error('Error in message handler', { error: e.message });
@@ -84,10 +98,17 @@ module.exports = {
 
   async executeCommand(command, { api, event, args, bot, commandName, logger, database, config, prefix }) {
       const getLang = (...args) => require('../utils.js').getText(command.config.name, ...args);
+      const startTime = Date.now();
 
       const messageHelper = {
-          reply: (form, callback) => api.sendMessage(form, event.threadId, callback, event.messageID),
-          send: (form, callback) => api.sendMessage(form, event.threadId, callback),
+          reply: async (form, callback) => {
+              await require('../utils.js').humanDelay();
+              return api.sendMessage(form, event.threadId, callback, event.messageID);
+          },
+          send: async (form, callback) => {
+              await require('../utils.js').humanDelay();
+              return api.sendMessage(form, event.threadId, callback);
+          },
           reaction: (emoji, id) => api.setMessageReaction(emoji, id || event.messageID),
           unsend: (id) => api.unsendMessage(id || event.messageID),
           err: (err) => api.sendMessage(`❌ Error: ${err.message || err}`, event.threadId),
@@ -101,10 +122,17 @@ module.exports = {
           PermissionManager, ConfigManager
       };
 
-      if (typeof command.onStart === 'function') {
-          await command.onStart(params);
-      } else if (typeof command.run === 'function') {
-          await command.run(params);
+      try {
+          if (typeof command.onStart === 'function') {
+              await command.onStart(params);
+          } else if (typeof command.run === 'function') {
+              await command.run(params);
+          }
+          const duration = Date.now() - startTime;
+          logger.success('COMMAND', `${commandName} executed successfully`, { threadID: event.threadId, senderID: event.senderID, duration: `${duration}ms` });
+      } catch (e) {
+          logger.error('COMMAND', `Error executing ${commandName}`, { error: e.message, threadID: event.threadId, senderID: event.senderID });
+          messageHelper.err(e);
       }
   }
 };
