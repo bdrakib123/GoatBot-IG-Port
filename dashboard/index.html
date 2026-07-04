@@ -301,6 +301,9 @@ async function loadOverview(){
   if(!d) return;
   document.getElementById('status-dot').style.background=d.connected?'var(--green)':'var(--red)';
   document.getElementById('status-text').textContent=d.connected?'Online':'Offline';
+  if (!d.connected) {
+    document.getElementById('recent-activity').innerHTML += '<div style="padding:8px;background:rgba(218,54,51,0.1);border:1px solid var(--red);border-radius:6px;margin-top:10px;font-size:0.8rem;color:var(--red)"><strong>Cookie Error:</strong> Session validation failed. Please check your account.txt and ensure cookies are fresh.</div>';
+  }
   document.getElementById('bot-username').textContent='@'+(d.username||d.userID||'—');
   document.getElementById('last-updated').textContent='Updated '+new Date().toLocaleTimeString();
   document.getElementById('ov-status').innerHTML=`<span class="badge badge-${d.connected?'green':'red'}">${d.connected?'● Online':'✕ Offline'}</span>`;
@@ -325,6 +328,8 @@ async function loadOverview(){
     ['Username','@'+(d.username||'—')],
     ['Author','Gtajisan'],
     ['Platform','Instagram DM (MQTT)'],
+    ['Dashboard URL', d.dashboardURL ? '<a href="' + d.dashboardURL + '" target="_blank" style="color:var(--accent2);text-decoration:none">' + d.dashboardURL + '</a>' : '—'],
+    ['Uptime URL', d.uptimeURL ? '<a href="' + d.uptimeURL + '" target="_blank" style="color:var(--accent2);text-decoration:none">' + d.uptimeURL + '</a>' : '—'],
   ];
   document.getElementById('bot-info-table').innerHTML=rows.map(([k,v])=>
     `<tr><td style="color:var(--sub);width:130px">${k}</td><td style="font-weight:500">${v}</td></tr>`
