@@ -200,7 +200,7 @@ class InstagramBot {
                     await this.ica.login(config.ACCOUNT_EMAIL, config.ACCOUNT_PASSWORD);
                     await this.ica.saveCookiesToFile(config.ACCOUNT_FILE);
                 } else {
-                    throw new Error('Cookies invalid and no credentials provided.');
+                    this.shouldReconnect = false; throw new Error('Cookies invalid and no credentials provided.');
                 }
             }
         } else if (hasCredentials) {

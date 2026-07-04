@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "node index.js",
-    "dev": "node index.js"
+    "dev": "node index.js",
+    "postinstall": "cd bot/neokex-ica && npm install"
   },
   "dependencies": {
     "@distube/ytdl-core": "^4.16.12",

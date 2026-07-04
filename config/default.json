@@ -69,7 +69,7 @@
   "autoUptime": {
     "enable": true,
     "timeInterval": 180,
-    "url": ""
+    "url": "https://goatbot-ig-port-vmpo.onrender.com/uptime"
   },
   "autoLoadScripts": {
     "enable": false,
