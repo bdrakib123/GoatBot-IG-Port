@@ -40,7 +40,6 @@ class EventLoader {
   async handleEvent(name, data) {
     const ev = this.events.get(name);
 
-    // Support for handlerEvents global in GoatV2
     for (const [eventName, eventCmd] of this.events) {
         if (typeof eventCmd.onStart === 'function') {
             eventCmd.onStart({
@@ -55,8 +54,10 @@ class EventLoader {
         }
     }
 
-    if (!ev) { logger.debug(`No handler for event: ${name}`); return; }
-    try { await ev.run(this.bot, data); }
+    if (!ev) return;
+    try {
+        await ev.run(this.bot, data);
+    }
     catch (e) { logger.error(`Error handling event ${name}`, { error: e.message, stack: e.stack }); }
   }
 

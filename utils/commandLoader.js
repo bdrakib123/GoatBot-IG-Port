@@ -47,7 +47,7 @@ class CommandLoader {
         if (typeof cmd.onLoad === 'function') {
             try {
                 cmd.onLoad({
-                    api: global.GoatBot.fcaApi,
+                    api: global.GoatBot.icaApi,
                     bot: global.GoatBot.instance, // Will be set later
                     database: require('./database'),
                     usersData: require('./database').usersData,
