@@ -75,12 +75,9 @@ export default class InstagramClientV2 extends EventEmitter {
       logger.session(`Authenticated via cookies (User ID: ${this.userId})`);
       this.emit('cookies:loaded', { cookieFile: filePath });
 
-      try {
-        const user = await this.ig.account.currentUser();
-        this.username = user.username;
-        logger.info(`Verified user: ${this.username}`);
-      } catch (_) {
-        logger.warn('Could not verify user from cookies, will try to proceed anyway');
+      const validate = await this.validateSession();
+      if (!validate.valid) {
+          logger.warn('Initial session validation failed, but cookies are loaded. Continuing anyway...');
       }
 
       return this.cookies;
@@ -119,22 +116,44 @@ export default class InstagramClientV2 extends EventEmitter {
   }
 
   async validateSession() {
-    try {
-      const user = await this.ig.account.currentUser();
-      this.username = user.username;
-      logger.info(`Session valid — user: ${this.username}`);
-      return { valid: true, userId: this.userId, username: this.username };
-    } catch (error) {
-      logger.error('Session validation failed:', error.message);
-      this.emit('session:expired', { error });
-      return { valid: false, error: error.message };
+    const tryEndpoints = [
+      async () => {
+          const user = await this.ig.account.currentUser();
+          this.username = user.username;
+          return { valid: true, type: 'currentUser' };
+      },
+      async () => {
+          await this.ig.feed.directInbox().items();
+          return { valid: true, type: 'directInbox' };
+      },
+      async () => {
+          await this.ig.news.inbox();
+          return { valid: true, type: 'newsInbox' };
+      }
+    ];
+
+    let lastError;
+    for (const test of tryEndpoints) {
+      try {
+        const res = await test();
+        logger.info(`Session validated successfully via ${res.type}`);
+        return { valid: true, userId: this.userId, username: this.username };
+      } catch (e) {
+        lastError = e;
+        const msg = e.message?.toLowerCase() || '';
+        if (msg.includes('login_required') || msg.includes('checkpoint')) break;
+      }
     }
+
+    logger.error('Session validation failed:', lastError?.message);
+    this.emit('session:expired', { error: lastError });
+    return { valid: false, error: lastError?.message };
   }
 
   async pingSession() {
     try {
-      await this.ig.account.currentUser();
-      return true;
+      const validate = await this.validateSession();
+      return validate.valid;
     } catch (_) {
       return false;
     }

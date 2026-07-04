@@ -5,7 +5,7 @@
  * @author NeoKEX (https://github.com/NeoKEX)
  * @license MIT
  */
-import logger from '../logger.js';
+import logger from '../Logger.js';
 export class FeedsAPI {
     constructor(ig, userId) {
         this.ig = ig;

@@ -7,7 +7,7 @@
  */
 import { IgApiClient } from 'instagram-private-api';
 import { EventEmitter } from 'events';
-import logger from '../logger.js';
+import logger from '../Logger.js';
 import { CookieManager } from './cookies.js';
 export class InstagramCore extends EventEmitter {
     constructor() {
