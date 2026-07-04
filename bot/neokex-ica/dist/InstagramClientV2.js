@@ -59,13 +59,9 @@ export default class InstagramClientV2 extends EventEmitter {
             logger.success('Cookies loaded successfully');
             logger.session(`Authenticated via cookies (User ID: ${this.userId})`);
             this.emit('cookies:loaded', { cookieFile: filePath });
-            try {
-                const user = await this.ig.account.currentUser();
-                this.username = user.username;
-                logger.info(`Verified user: ${this.username}`);
-            }
-            catch (_) {
-                logger.warn('Could not verify user from cookies, will try to proceed anyway');
+            const validate = await this.validateSession();
+            if (!validate.valid) {
+                logger.warn('Initial session validation failed, but cookies are loaded. Continuing anyway...');
             }
             return this.cookies;
         }
@@ -98,22 +94,43 @@ export default class InstagramClientV2 extends EventEmitter {
         return this.ig;
     }
     async validateSession() {
-        try {
-            const user = await this.ig.account.currentUser();
-            this.username = user.username;
-            logger.info(`Session valid — user: ${this.username}`);
-            return { valid: true, userId: this.userId, username: this.username };
+        const tryEndpoints = [
+            async () => {
+                const user = await this.ig.account.currentUser();
+                this.username = user.username;
+                return { valid: true, type: 'currentUser' };
+            },
+            async () => {
+                await this.ig.feed.directInbox().items();
+                return { valid: true, type: 'directInbox' };
+            },
+            async () => {
+                await this.ig.news.inbox();
+                return { valid: true, type: 'newsInbox' };
+            }
+        ];
+        let lastError;
+        for (const test of tryEndpoints) {
+            try {
+                const res = await test();
+                logger.info(`Session validated successfully via ${res.type}`);
+                return { valid: true, userId: this.userId, username: this.username };
+            }
+            catch (e) {
+                lastError = e;
+                const msg = e.message?.toLowerCase() || '';
+                if (msg.includes('login_required') || msg.includes('checkpoint'))
+                    break;
+            }
         }
-        catch (error) {
-            logger.error('Session validation failed:', error.message);
-            this.emit('session:expired', { error });
-            return { valid: false, error: error.message };
-        }
+        logger.error('Session validation failed:', lastError?.message);
+        this.emit('session:expired', { error: lastError });
+        return { valid: false, error: lastError?.message };
     }
     async pingSession() {
         try {
-            await this.ig.account.currentUser();
-            return true;
+            const validate = await this.validateSession();
+            return validate.valid;
         }
         catch (_) {
             return false;
@@ -236,7 +253,7 @@ export default class InstagramClientV2 extends EventEmitter {
     }
     async getBlockedUsers() {
         try {
-            const feed = this.ig.feed.accountFollowersYouKnow();
+            const feed = this.ig.feed.accountBlocked();
             return await feed.items();
         }
         catch (error) {
@@ -595,8 +612,8 @@ export default class InstagramClientV2 extends EventEmitter {
             const current = await this.ig.account.currentUser();
             const payload = {
                 username: options.username || current.username,
-                name: options.name || options.fullName || current.full_name,
-                biography: options.biography || options.bio || current.biography,
+                first_name: options.name || options.fullName || current.full_name,
+                biography: options.biography || options.bio || current.biography || '',
                 email: options.email || current.email || '',
                 phone_number: options.phone || current.phone_number || '',
                 external_url: options.website || options.externalUrl || current.external_url || '',

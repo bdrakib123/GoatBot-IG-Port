@@ -8,7 +8,7 @@
 import { readFileSync, writeFileSync, unlinkSync } from 'fs';
 import sharp from 'sharp';
 import axios from 'axios';
-import logger from '../logger.js';
+import logger from '../Logger.js';
 import { withRetry } from '../utils/retry.js';
 import { withTimeout } from '../utils/timeout.js';
 import { sleep } from '../utils/sleep.js';

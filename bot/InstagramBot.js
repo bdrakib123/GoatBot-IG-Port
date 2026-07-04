@@ -202,8 +202,13 @@ class InstagramBot {
                     logger.warn('Cookies invalid, attempting password login...');
                     await this.ica.login(config.ACCOUNT_EMAIL, config.ACCOUNT_PASSWORD);
                     await this.ica.saveCookiesToFile(config.ACCOUNT_FILE);
+                    const val2 = await this.ica.validateSession();
+                    if (!val2.valid) {
+                         logger.warn('Login successful but session validation still failed. Proceeding anyway...');
+                    }
                 } else {
-                    this.shouldReconnect = false; throw new Error('Cookies invalid and no credentials provided.');
+                    logger.warn('Cookies loaded but validation returned error. Some accounts work even when validation fails. Proceeding...');
+                    // Don't throw here to allow the bot to try its luck if cookies are present.
                 }
             }
         } else if (hasCredentials) {
@@ -226,7 +231,7 @@ class InstagramBot {
     this.userID = String(this.ica.getCurrentUserID());
     this.username = this.ica.getCurrentUsername();
 
-    logger.info(`Logged in as ${this.username} (${this.userID})`);
+    logger.info(`Logged in as ${this.username || 'unknown'} (${this.userID || 'unknown'})`);
 
     this.api = this.createCompatibilityWrapper(this.ica);
     global.GoatBot.icaApi = this.api;

@@ -17,7 +17,7 @@ export type EventMap = {
         user_id: string;
     }];
     /**
-     * 'polling:start'
+     * "polling:start"
      */
     "": [{
         interval: number;

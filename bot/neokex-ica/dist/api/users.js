@@ -5,7 +5,7 @@
  * @author NeoKEX (https://github.com/NeoKEX)
  * @license MIT
  */
-import logger from '../logger.js';
+import logger from '../Logger.js';
 import { sleep } from '../utils/sleep.js';
 export class UsersAPI {
     constructor(ig) {
@@ -104,7 +104,7 @@ export class UsersAPI {
     }
     async getBlockedUsers() {
         try {
-            const feed = this.ig.feed.accountFollowers();
+            const feed = this.ig.feed.accountBlocked();
             return await feed.items();
         }
         catch (error) {
