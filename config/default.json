@@ -133,7 +133,7 @@
     "enable": false,
     "command": "gpt"
   },
-  "optionsFca": {
+  "optionsIca": {
     "online": true,
     "selfListen": true,
     "selfListenEvent": true,
