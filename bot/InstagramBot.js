@@ -109,6 +109,9 @@ class InstagramBot {
           platform:     process.platform,
           arch:         process.arch,
           totalUsers:   users.length,
+          dashboardURL: process.env.RENDER_EXTERNAL_URL || 'http://localhost:' + port,
+          uptimeURL:    (process.env.RENDER_EXTERNAL_URL || 'http://localhost:' + port) + '/uptime',
+          externalURL:  process.env.RENDER_EXTERNAL_URL || '',
           stats:        database.getAllStats()
         });
       }
