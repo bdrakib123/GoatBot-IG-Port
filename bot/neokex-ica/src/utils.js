@@ -59,9 +59,9 @@ export function formatUptime(ms) {
 
 export function classifyError(error) {
   const msg = (error?.message || String(error)).toLowerCase();
-  const status = error?.response?.status || error?.statusCode;
+  const status = error?.response?.status || error?.response?.statusCode || error?.statusCode || error?.status;
 
-  if (status === 401 || msg.includes('login_required') || msg.includes('not authenticated') || msg.includes('checkpoint')) {
+  if (status === 401 || status === 467 || msg.includes('login_required') || msg.includes('not authenticated') || msg.includes('checkpoint') || msg.includes('467')) {
     return 'auth';
   }
   if (status === 429 || msg.includes('429') || msg.includes('throttle') || msg.includes('rate limit') || msg.includes('please wait')) {

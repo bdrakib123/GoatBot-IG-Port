@@ -61,6 +61,8 @@ export default class InstagramClientV2 extends EventEmitter {
       }
 
       this.userId = cookies.ds_user_id;
+      if (cookies.ds_user_name) this.username = cookies.ds_user_name;
+      else if (cookies.username) this.username = cookies.username;
       this.ig.state.generateDevice(this.userId);
 
       for (const [name, value] of Object.entries(cookies)) {
@@ -96,6 +98,8 @@ export default class InstagramClientV2 extends EventEmitter {
   setCookies(cookies) {
     this.cookies = { ...this.cookies, ...cookies };
     if (cookies.ds_user_id) this.userId = cookies.ds_user_id;
+      if (cookies.ds_user_name) this.username = cookies.ds_user_name;
+      else if (cookies.username) this.username = cookies.username;
     this.isLoggedIn = true;
   }
 
@@ -119,7 +123,7 @@ export default class InstagramClientV2 extends EventEmitter {
     const tryEndpoints = [
       async () => {
           const user = await this.ig.account.currentUser();
-          this.username = user.username;
+          if (user && user.username) this.username = user.username;
           return { valid: true, type: 'currentUser' };
       },
       async () => {
