@@ -13,8 +13,6 @@ const Banner        = require('../utils/banner');
 
 // Bridge to ESM neokex-ica
 async function createIca() {
-    // Note: neokex-ica uses its own node_modules if present,
-    // but Render should install its deps at root.
     const { InstagramChatAPI } = await import('./neokex-ica/src/index.js');
     return new InstagramChatAPI({ showBanner: true });
 }
@@ -33,6 +31,7 @@ class InstagramBot {
     this._reminderTimer     = null;
     this._autoRemoveTimer   = null;
     this._uptimeTimer       = null;
+    this._cookieRefreshTimer = null;
     this._healthServer      = null;
     this._initPromise       = null;
 
@@ -56,6 +55,12 @@ class InstagramBot {
 
     const port = parseInt(process.env.PORT || config.DASHBOARD_PORT || 3000, 10);
     const dashboardHtml = path.join(__dirname, '..', 'dashboard', 'index.html');
+
+    const recentActivity = [];
+    this._logActivity = (text) => {
+      recentActivity.unshift({ text, time: Date.now() });
+      if (recentActivity.length > 20) recentActivity.pop();
+    };
 
     const server = http.createServer(async (req, res) => {
       const url = req.url.split('?')[0];
