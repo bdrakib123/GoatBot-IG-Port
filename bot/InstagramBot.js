@@ -13,7 +13,9 @@ const Banner        = require('../utils/banner');
 
 // Bridge to ESM neokex-ica
 async function createIca() {
-    const { InstagramChatAPI } = await import('./neokex-ica/dist/index.js');
+    // Note: neokex-ica uses its own node_modules if present,
+    // but Render should install its deps at root.
+    const { InstagramChatAPI } = await import('./neokex-ica/src/index.js');
     return new InstagramChatAPI({ showBanner: true });
 }
 
@@ -31,8 +33,8 @@ class InstagramBot {
     this._reminderTimer     = null;
     this._autoRemoveTimer   = null;
     this._uptimeTimer       = null;
-    this._cookieRefreshTimer = null;
     this._healthServer      = null;
+    this._initPromise       = null;
 
     global.GoatBot = {
         config: config,
@@ -54,12 +56,6 @@ class InstagramBot {
 
     const port = parseInt(process.env.PORT || config.DASHBOARD_PORT || 3000, 10);
     const dashboardHtml = path.join(__dirname, '..', 'dashboard', 'index.html');
-
-    const recentActivity = [];
-    this._logActivity = (text) => {
-      recentActivity.unshift({ text, time: Date.now() });
-      if (recentActivity.length > 20) recentActivity.pop();
-    };
 
     const server = http.createServer(async (req, res) => {
       const url = req.url.split('?')[0];
@@ -108,54 +104,13 @@ class InstagramBot {
           platform:     process.platform,
           arch:         process.arch,
           totalUsers:   users.length,
-          stats:        database.getAllStats(),
-          recentActivity
+          stats:        database.getAllStats()
         });
-      }
-
-      if (route === '/threads') {
-        try {
-          const inbox = await this.ica.getInbox();
-          const threads = (inbox?.threads || []).map(t => ({
-            threadID:        t.thread_id || t.id,
-            name:            t.thread_title || t.name || '',
-            isGroup:         t.is_group || false,
-            participantCount: (t.users||t.participants||[]).length,
-            snippet:         t.last_permanent_item?.text || t.snippet || ''
-          }));
-          return json({ threads });
-        } catch (e) {
-          return json({ threads: [], error: e.message });
-        }
-      }
-
-      if (route === '/logs') {
-        const moment = require('moment-timezone');
-        const today = moment().tz(config.TIMEZONE || 'UTC').format('YYYY-MM-DD');
-        const logFile = path.join(process.cwd(), 'logs', `combined-${today}.log`);
-        try {
-          let raw = '';
-          if (fs.existsSync(logFile)) raw = fs.readFileSync(logFile, 'utf-8');
-          const logs = raw.trim().split('\n').filter(Boolean).slice(-300).map(line => {
-            try {
-              const parsed = JSON.parse(line);
-              return { time: parsed.timestamp || '', level: parsed.level?.toUpperCase() || 'INFO', message: parsed.message || line };
-            } catch {
-              return { time: '', level: 'INFO', message: line };
-            }
-          });
-          return json({ logs: logs.reverse() });
-        } catch (e) {
-          return json({ logs: [], error: e.message });
-        }
       }
 
       res.writeHead(404); res.end('Not found');
     });
 
-    server.listen(port, '0.0.0.0', () => {
-      logger.info(`Dashboard/Health running on port ${port}`);
-    });
     server.on('error', err => {
       if (err.code === 'EADDRINUSE') {
           logger.warn(`Health server port ${port} already in use.`);
@@ -163,6 +118,11 @@ class InstagramBot {
           logger.error('Server error', { error: err.message });
       }
     });
+
+    server.listen(port, '0.0.0.0', () => {
+      logger.info(`Dashboard/Health running on port ${port}`);
+    });
+
     this._healthServer = server;
     return server;
   }
@@ -170,44 +130,57 @@ class InstagramBot {
   async start() {
     this.startHealthServer();
     this.keepAlive();
-    try {
-      Banner.display();
-      logger.info('Initializing neokex-ica...');
 
-      this.ica = await createIca();
+    if (this._initPromise) return this._initPromise;
 
-      const database = require('../utils/database');
-      await database.ready;
-      global.db = database;
+    this._initPromise = (async () => {
+        try {
+          Banner.display();
+          logger.info('Initializing core components...');
 
-      await this.commandLoader.loadCommands();
-      await this.eventLoader.loadEvents();
-      this.eventLoader.registerEvents();
+          const database = require('../utils/database');
+          await database.ready;
+          global.db = database;
 
-      await this.loginAndStart();
+          await this.commandLoader.loadCommands();
+          await this.eventLoader.loadEvents();
+          this.eventLoader.registerEvents();
 
-      this._scheduleAutoRestart();
-      this._startReminderScheduler();
-      this._startAutoRemoveScheduler();
-      this._startUptimeMonitor();
+          await this.loginAndStart();
 
-    } catch (error) {
-      logger.error('Failed to start bot', { error: error.message, stack: error.stack });
-      if (this.shouldReconnect && this.reconnectAttempts < config.MAX_RECONNECT_ATTEMPTS) {
-        this.scheduleReconnect();
-      } else {
-        process.exit(1);
-      }
-    }
+          this._scheduleAutoRestart();
+          this._startReminderScheduler();
+          this._startAutoRemoveScheduler();
+          this._startUptimeMonitor();
+
+        } catch (error) {
+          logger.error('Failed to start bot', { error: error.message, stack: error.stack });
+          this._initPromise = null;
+          if (this.shouldReconnect && this.reconnectAttempts < config.MAX_RECONNECT_ATTEMPTS) {
+            this.scheduleReconnect();
+          } else {
+            process.exit(1);
+          }
+        }
+    })();
+
+    return this._initPromise;
   }
 
   async loginAndStart() {
+    if (!this.ica) {
+        logger.info('Initializing neokex-ica...');
+        this.ica = await createIca();
+    }
+
     await this.loadAndLogin();
     this.isRunning = true;
     this.eventLoader.handleEvent('ready', this);
   }
 
   async loadAndLogin() {
+    if (!this.ica) throw new Error('ICA instance not initialized');
+
     const hasCookieFile = fs.existsSync(config.ACCOUNT_FILE);
     const hasCredentials = !!(config.ACCOUNT_EMAIL && config.ACCOUNT_PASSWORD);
 
@@ -241,6 +214,7 @@ class InstagramBot {
   }
 
   _afterLogin() {
+    if (!this.ica) return;
     this.userID = String(this.ica.getCurrentUserID());
     this.username = this.ica.getCurrentUsername();
 
@@ -316,7 +290,7 @@ class InstagramBot {
               let res;
               if (typeof form === 'object' && form.attachment) {
                   const attachment = form.attachment;
-                  const type = form.type || 'photo'; // default to photo
+                  const type = form.type || 'photo';
 
                   if (typeof attachment === 'string') {
                       if (attachment.startsWith('http')) {
@@ -328,7 +302,6 @@ class InstagramBot {
                           else res = await ica.sendPhoto(threadID, attachment, { caption: text, ...options });
                       }
                   } else {
-                      // Stream/Buffer - neokex-ica supports these in sendPhoto/sendVideo
                       if (type === 'video') res = await ica.sendVideo(threadID, attachment, { caption: text, ...options });
                       else if (type === 'audio') res = await ica.sendVoiceNote(threadID, attachment, options);
                       else res = await ica.sendPhoto(threadID, attachment, { caption: text, ...options });
@@ -409,12 +382,6 @@ class InstagramBot {
           const inbox = await ica.getInbox();
           return inbox.threads || [];
       },
-      addUserToGroup: async (userID, threadID) => {
-          return await ica.addUsersToThread(threadID, [userID]);
-      },
-      removeUserFromGroup: async (userID, threadID) => {
-          return await ica.removeUserFromThread(threadID, userID);
-      },
       markAsRead: async (threadID) => {
           return await ica.markAsSeen(threadID);
       },
@@ -436,7 +403,7 @@ class InstagramBot {
       const interval = 5 * 60 * 1000;
       this._uptimeTimer = setInterval(async () => {
           try {
-              await this.ica.pingSession();
+              if (this.ica) await this.ica.pingSession();
               const url = process.env.RENDER_EXTERNAL_URL || config.AUTO_UPTIME?.url;
               if (url) {
                   await axios.get(`${url}/uptime`).catch(() => {});
@@ -465,7 +432,7 @@ class InstagramBot {
               const due = database.getDueReminders();
               for (const reminder of due) {
                   database.removeReminder(reminder.id);
-                  try { await this.api.sendMessage(`⏰ Reminder!\n\n"${reminder.message}"`, reminder.userId); } catch (err) {}
+                  try { if (this.api) await this.api.sendMessage(`⏰ Reminder!\n\n"${reminder.message}"`, reminder.userId); } catch (err) {}
               }
               if (due.length > 0) database.save();
           } catch (err) {}
@@ -479,15 +446,16 @@ class InstagramBot {
           try {
               const database = require('../utils/database');
               const expired = database.getExpiredAutoRemoveMessages();
-              for (const msg of expired) { try { await this.api.unsendMessage(msg.messageId); } catch (err) {} }
+              for (const msg of expired) { try { if (this.api) await this.api.unsendMessage(msg.messageId); } catch (err) {} }
           } catch (err) {}
       }, 5000);
   }
 
   scheduleReconnect() {
+    if (this.isRunning) this.isRunning = false;
     this.reconnectAttempts++;
     if (this.reconnectAttempts >= config.MAX_RECONNECT_ATTEMPTS) {
-      logger.error('Max reconnection attempts reached.');
+      logger.error('Max reconnection attempts reached. Stopping bot.');
       process.exit(1);
     }
     const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
