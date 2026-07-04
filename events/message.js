@@ -13,13 +13,16 @@ module.exports = {
     description: 'Main message handler'
   },
   async run({ api, event, bot, database }) {
-    logger.debug(`Incoming message from ${event.senderID} in ${event.threadId}: ${event.body}`);
+    logger.debug('MESSAGE', `Incoming message from ${event.senderID} in ${event.threadId}: ${event.body}`, {
+        threadID: event.threadId,
+        senderID: event.senderID
+    });
     try {
       const { commandLoader } = bot;
 
       // 1. Check if user/thread is banned
       if (database.isUserBanned(event.senderID) || database.isThreadBanned(event.threadId)) {
-          logger.debug(`Ignoring message from banned user ${event.senderID} or thread ${event.threadId}`);
+          logger.debug('MESSAGE', `Ignoring message from banned user ${event.senderID} or thread ${event.threadId}`);
           return;
       }
 
@@ -64,25 +67,56 @@ module.exports = {
 
       if (!commandName) return;
 
-      const command = commandLoader.getCommand(commandName); if (command) logger.debug(`Executing command: ${commandName} for user: ${event.senderID}`);
+      let command = commandLoader.getCommand(commandName);
+      let isAlias = false;
+
       if (!command) {
           // Alias check
           for (const [name, cmd] of commandLoader.commands) {
               if (cmd.config.aliases && cmd.config.aliases.includes(commandName)) {
-                  logger.debug(`Executing command alias: ${commandName} (target: ${cmd.config.name}) for user: ${event.senderID}`); return await this.executeCommand(cmd, { api, event, args, bot, commandName: cmd.config.name, logger, database, config, prefix });
+                  command = cmd;
+                  isAlias = true;
+                  break;
               }
           }
-          return;
       }
 
-      await this.executeCommand(command, { api, event, args, bot, commandName, logger, database, config, prefix });
+      if (command) {
+          const finalCommandName = isAlias ? command.config.name : commandName;
+          logger.info('COMMAND', `Executing command: ${finalCommandName}${isAlias ? ` (via alias: ${commandName})` : ''} for user: ${event.senderID}`, {
+              threadID: event.threadId,
+              senderID: event.senderID
+          });
+          await this.executeCommand(command, { api, event, args, bot, commandName: finalCommandName, logger, database, config, prefix });
+      } else if (config.AI_FALLBACK?.enable) {
+          const aiCommandName = config.AI_FALLBACK.command || 'gpt';
+          const aiCommand = commandLoader.getCommand(aiCommandName);
+          if (aiCommand) {
+              logger.info('AI_FALLBACK', `No command found for "${commandName}", falling back to ${aiCommandName}`, {
+                  threadID: event.threadId,
+                  senderID: event.senderID
+              });
+              const aiArgs = [commandName, ...args];
+              await this.executeCommand(aiCommand, { api, event, args: aiArgs, bot, commandName: aiCommandName, logger, database, config, prefix });
+          }
+      }
 
     } catch (e) {
-      logger.error('Error in message handler', { error: e.message });
+      logger.error('MESSAGE_HANDLER', 'Error in message handler', { error: e });
     }
   },
 
   async executeCommand(command, { api, event, args, bot, commandName, logger, database, config, prefix }) {
+      // Typing indicator
+      if (config.typingIndicator?.enable && api.sendTypingIndicator) {
+          api.sendTypingIndicator(event.threadId).catch(() => {});
+      }
+
+      // Human delay
+      if (config.humanDelay?.enable) {
+          await global.utils.humanDelay(config.humanDelay.min, config.humanDelay.max);
+      }
+
       const getLang = (...args) => require('../utils.js').getText(command.config.name, ...args);
 
       const messageHelper = {

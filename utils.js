@@ -896,6 +896,28 @@ const utils = {
 	 */
 	getStream: async (url, pathName, options = {}) => {
 		return await utils.withBackoff(() => utils.getStreamFromURL(url, pathName, options));
+	},
+
+	/**
+	 * Extracts type and url from an attachment object
+	 * @param {Object} attachment
+	 * @returns {Object|null} { type, url }
+	 */
+	getAttachmentInfo: (attachment) => {
+		if (!attachment) return null;
+		let type = attachment.type || 'unknown';
+		let url = attachment.url || attachment.url_full || attachment.uri;
+
+		if (attachment.type === 'photo' || attachment.type === 'image') {
+			type = 'photo';
+			url = attachment.url || (attachment.image_versions2?.candidates?.[0]?.url);
+		} else if (attachment.type === 'video') {
+			url = attachment.url || (attachment.video_versions?.[0]?.url);
+		} else if (attachment.type === 'audio' || attachment.type === 'voice_message') {
+			type = 'audio';
+		}
+
+		return url ? { type, url } : null;
 	}
 };
 

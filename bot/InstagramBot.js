@@ -55,6 +55,7 @@ class InstagramBot {
       await database.ready;
 
       await this.loadAndLogin();
+      logger.reconfigure(config); // Reconfigure logger after config is loaded and login successful
 
       this._scheduleAutoRestart();
       this._scheduleAutoUptime();
@@ -95,18 +96,18 @@ class InstagramBot {
         throw new Error('No credentials found. Please provide IG_COOKIES or set up account.txt / EMAIL & PASSWORD.');
     }
 
-    logger.info('Logging in with nkxica (Primary)...');
+    logger.info('LOGIN', 'Attempting login with nkxica (Primary)...');
     try {
         this.nkxica = await loginNkxica(credentials);
-        logger.info('nkxica login successful');
+        logger.success('LOGIN', 'nkxica login successful');
     } catch (e) {
-        logger.error('nkxica login failed', { error: e.message });
-        logger.info('Attempting login with Instagram-FCA (Fallback)...');
+        logger.error('LOGIN', 'nkxica login failed', { error: e });
+        logger.info('LOGIN', 'Attempting login with Instagram-FCA (Fallback)...');
         try {
             this.fca = await loginFca(credentials, config.OPTIONS_FCA);
-            logger.info('Instagram-FCA login successful');
+            logger.success('LOGIN', 'Instagram-FCA login successful');
         } catch (fcaErr) {
-            logger.error('Instagram-FCA login failed', { error: fcaErr.message });
+            logger.error('LOGIN', 'Instagram-FCA login failed', { error: fcaErr });
             throw e;
         }
     }
@@ -161,20 +162,22 @@ class InstagramBot {
 
     this.api.listen((err, event) => {
         if (err) {
-            logger.error('Listen error', { error: err.message });
+            logger.error('LISTEN', 'Listen error', { error: err });
             // If the listener has a fatal error, we schedule a reconnect
             if (this.isRunning && this.shouldReconnect) {
-                logger.warn('Fatal listen error detected. Restarting bot...');
+                logger.warn('LISTEN', 'Fatal listen error detected. Restarting bot...');
                 this.isRunning = false;
                 this.scheduleReconnect();
                 if (config.AUTO_RESTART_WHEN_MQTT_ERROR) {
-                    logger.info("Auto-restart enabled. Exiting process...");
+                    logger.info('LISTEN', "Auto-restart enabled. Exiting process...");
                     setTimeout(() => process.exit(1), 1000);
                 }
             }
             return;
         }
-        logger.debug(`Received event: ${event.type || "unknown"} from ${event.senderID || event.user_id || "unknown"}`);
+        if (event) {
+            logger.debug('EVENT', `Received event: ${event.type || "unknown"} from ${event.senderID || event.user_id || "unknown"}`);
+        }
         this.resetWatchdog();
         if (!event) return;
 
