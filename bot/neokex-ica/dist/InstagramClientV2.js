@@ -51,6 +51,10 @@ export default class InstagramClientV2 extends EventEmitter {
                 throw new Error('Invalid cookie file — missing sessionid or ds_user_id');
             }
             this.userId = cookies.ds_user_id;
+            if (cookies.ds_user_name)
+                this.username = cookies.ds_user_name;
+            else if (cookies.username)
+                this.username = cookies.username;
             this.ig.state.generateDevice(this.userId);
             for (const [name, value] of Object.entries(cookies)) {
                 await this.ig.state.cookieJar.setCookie(`${name}=${value}; Domain=.instagram.com; Path=/;`, 'https://instagram.com');
@@ -79,6 +83,10 @@ export default class InstagramClientV2 extends EventEmitter {
         this.cookies = { ...this.cookies, ...cookies };
         if (cookies.ds_user_id)
             this.userId = cookies.ds_user_id;
+        if (cookies.ds_user_name)
+            this.username = cookies.ds_user_name;
+        else if (cookies.username)
+            this.username = cookies.username;
         this.isLoggedIn = true;
     }
     getCookies() {
@@ -97,7 +105,8 @@ export default class InstagramClientV2 extends EventEmitter {
         const tryEndpoints = [
             async () => {
                 const user = await this.ig.account.currentUser();
-                this.username = user.username;
+                if (user && user.username)
+                    this.username = user.username;
                 return { valid: true, type: 'currentUser' };
             },
             async () => {

@@ -207,7 +207,10 @@ class InstagramBot {
                          logger.warn('Login successful but session validation still failed. Proceeding anyway...');
                     }
                 } else {
-                    logger.warn('Cookies loaded but validation returned error. Some accounts work even when validation fails. Proceeding...');
+                    if (validate.error && (validate.error.includes('checkpoint') || validate.error.includes('467'))) {
+                        logger.error('Account is stuck on a checkpoint or 467 error. Manual intervention in a browser is required.');
+                    }
+                    logger.warn('Cookies loaded but validation returned error. Proceeding anyway...');
                     // Don't throw here to allow the bot to try its luck if cookies are present.
                 }
             }

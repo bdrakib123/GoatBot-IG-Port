@@ -122,6 +122,7 @@ export default class DirectMessageV2 {
       };
     } catch (error) {
       logger.error('Failed to get inbox:', error.message);
+      if (classifyError(error) === 'auth') throw error;
       return { threads: [], has_older: false, cursor: null, unseen_count: 0, pending_requests_total: 0 };
     }
   }
@@ -376,6 +377,7 @@ export default class DirectMessageV2 {
       return { threads, has_older: feed.moreAvailable };
     } catch (error) {
       logger.error('Failed to get pending inbox:', error.message);
+      if (classifyError(error) === 'auth') throw error;
       throw new Error(`Failed to get pending inbox: ${error.message}`);
     }
   }
@@ -772,9 +774,12 @@ export default class DirectMessageV2 {
       for (const item of (thread.items || [])) {
         if (!item?.item_id || this.seenMessageIds.has(item.item_id)) continue;
 
-        this._trackSeen(item.item_id);
-
         const isFromMe = item.user_id?.toString() === this.client.userId;
+        // Don't track sent messages yet, let them be processed by the bot if self-listen is enabled
+        // Actually, the bot handles its own messages if icaApi.options.selfListen is true.
+        // We should follow that logic.
+
+        this._trackSeen(item.item_id);
 
         const messageEvent = {
           thread_id:   threadId,
