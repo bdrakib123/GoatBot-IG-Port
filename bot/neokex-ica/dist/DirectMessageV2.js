@@ -112,9 +112,12 @@ export default class DirectMessageV2 {
             };
         }
         catch (error) {
-            logger.error('Failed to get inbox:', error.message);
-            if (classifyError(error) === 'auth')
+            const kind = classifyError(error);
+            if (kind === 'auth') {
+                logger.error('Inbox access failed (Auth Error):', error.message);
                 throw error;
+            }
+            logger.error('Failed to get inbox:', error.message);
             return { threads: [], has_older: false, cursor: null, unseen_count: 0, pending_requests_total: 0 };
         }
     }
@@ -354,9 +357,9 @@ export default class DirectMessageV2 {
             return { threads, has_older: feed.moreAvailable };
         }
         catch (error) {
-            logger.error('Failed to get pending inbox:', error.message);
             if (classifyError(error) === 'auth')
                 throw error;
+            logger.error('Failed to get pending inbox:', error.message);
             throw new Error(`Failed to get pending inbox: ${error.message}`);
         }
     }
@@ -645,7 +648,7 @@ export default class DirectMessageV2 {
         this._stats.circuitOpen = false;
         this._stats.consecutiveErrors = 0;
         this._registerShutdownHandlers();
-        await this._seedSeenIds();
+        await this._seedSeenIds().catch(() => { });
         logger.event(`Polling started (interval: ${interval}ms, min: ${minInterval}ms, max: ${maxInterval}ms)`);
         this.client.emit('polling:start', { interval });
         let sweepCounter = 0;
@@ -696,7 +699,7 @@ export default class DirectMessageV2 {
                     this.client.emit('circuit:open', { consecutiveErrors: this._stats.consecutiveErrors, cooldown: circuitCooldown });
                     continue;
                 }
-                const backoff = exponentialBackoff(this._stats.consecutiveErrors, 2000, 30000);
+                const backoff = exponentialBackoff(this._stats.consecutiveErrors, 5000, 60000);
                 await sleep(backoff);
                 continue;
             }
@@ -707,7 +710,7 @@ export default class DirectMessageV2 {
     }
     async _pollCycle() {
         const inbox = await this.getInbox();
-        if (!inbox.threads?.length)
+        if (!inbox.threads || inbox.threads.length === 0)
             return false;
         let hadActivity = false;
         for (const thread of inbox.threads) {
@@ -723,9 +726,10 @@ export default class DirectMessageV2 {
                 if (!item?.item_id || this.seenMessageIds.has(item.item_id))
                     continue;
                 const isFromMe = item.user_id?.toString() === this.client.userId;
-                // Don't track sent messages yet, let them be processed by the bot if self-listen is enabled
-                // Actually, the bot handles its own messages if icaApi.options.selfListen is true.
-                // We should follow that logic.
+                if (isFromMe && !this.client.optionsIca?.selfListen) {
+                    this._trackSeen(item.item_id);
+                    continue;
+                }
                 this._trackSeen(item.item_id);
                 const messageEvent = {
                     thread_id: threadId,
@@ -737,6 +741,7 @@ export default class DirectMessageV2 {
                     is_from_me: isFromMe,
                     thread_title: thread.thread_title || null,
                     thread_users: thread.users || [],
+                    attachments: this._extractAttachments(item)
                 };
                 if (item.replied_to_message) {
                     messageEvent.messageReply = {
@@ -768,6 +773,28 @@ export default class DirectMessageV2 {
             this.client.emit('pending_request', { count: pending.threads.length, threads: pending.threads });
         }
         return hadActivity;
+    }
+    _extractAttachments(item) {
+        const attachments = [];
+        if (item.media) {
+            const type = item.media.media_type === 1 ? 'photo' : 'video';
+            const url = type === 'photo' ? item.media.image_versions2?.candidates?.[0]?.url : item.media.video_versions?.[0]?.url;
+            if (url)
+                attachments.push({ type, url });
+        }
+        if (item.visual_media) {
+            const m = item.visual_media.media;
+            const type = m.media_type === 1 ? 'photo' : 'video';
+            const url = type === 'photo' ? m.image_versions2?.candidates?.[0]?.url : m.video_versions?.[0]?.url;
+            if (url)
+                attachments.push({ type, url });
+        }
+        if (item.voice_media) {
+            const url = item.voice_media.media?.audio?.audio_src;
+            if (url)
+                attachments.push({ type: 'audio', url });
+        }
+        return attachments;
     }
     stopPolling() {
         if (!this.isPolling)

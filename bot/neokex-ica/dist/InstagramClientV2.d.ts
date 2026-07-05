@@ -4,6 +4,7 @@ export default class InstagramClientV2 {
     username: any;
     isLoggedIn: boolean;
     cookies: {};
+    optionsIca: {};
     login(username: any, password: any): Promise<{
         logged_in_user: import("instagram-private-api").AccountRepositoryLoginResponseLogged_in_user;
         userId: any;
