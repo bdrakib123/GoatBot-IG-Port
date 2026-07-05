@@ -880,8 +880,8 @@ const utils = {
 			return await fn();
 		} catch (error) {
 			if (retries <= 0) throw error;
-			const errorMessage = error.message || String(error);
-			if (errorMessage.includes('rate limit') || errorMessage.includes('spam') || errorMessage.includes('429')) {
+			const errorMessage = (error.message || String(error)).toLowerCase();
+			if (errorMessage.includes('rate limit') || errorMessage.includes('spam') || errorMessage.includes('429') || errorMessage.includes('too many requests')) {
 				const backoffDelay = delay * 2;
 				utils.log.warn('BACKOFF', `Rate limit hit, retrying in ${backoffDelay}ms... (Retries left: ${retries})`);
 				await new Promise(resolve => setTimeout(resolve, backoffDelay));
@@ -896,7 +896,33 @@ const utils = {
 	 */
 	getStream: async (url, pathName, options = {}) => {
 		return await utils.withBackoff(() => utils.getStreamFromURL(url, pathName, options));
-	}
+	},
+
+    /**
+     * Standardized attachment info extractor
+     * @param {Object} message Message object from event
+     * @returns {Array} Array of attachment info
+     */
+    getAttachmentInfo: (message) => {
+        const attachments = message.attachments || [];
+        // If it's a message reply, also check those attachments
+        const replyAttachments = message.messageReply?.attachments || [];
+
+        return [...attachments, ...replyAttachments].map(att => ({
+            type: att.type,
+            url: att.url,
+            ID: att.ID || att.itemId,
+            filename: att.filename || att.fileName || (att.url ? path.basename(new URL(att.url).pathname) : 'unknown')
+        }));
+    },
+
+    /**
+     * Formats error for logging and user feedback
+     */
+    formatError: (error) => {
+        if (typeof error === 'string') return error;
+        return error.message || JSON.stringify(error);
+    }
 };
 
 module.exports = utils;

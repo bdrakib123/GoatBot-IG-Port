@@ -19,11 +19,21 @@ function simplifyObject(obj) {
                 : (typeof obj.response?.data === 'object' ? '[Object]' : obj.response?.data)
         };
     }
+
+    // If it's an Error object, extract useful fields
+    if (obj instanceof Error) {
+        return {
+            name: obj.name,
+            message: obj.message,
+            stack: obj.stack?.split('\n').slice(0, 3).join('\n') + '...'
+        };
+    }
+
     return obj;
 }
 
 /**
- * Enhanced formatAndLog function to handle various argument styles
+ * Enhanced formatAndLog function to handle various argument styles and inject context
  * @param {string} level The log level (info, success, warn, error, debug)
  * @param {Array} args The arguments passed to the log function
  */
@@ -50,33 +60,48 @@ function formatAndLog(level, args) {
 
     // Apply simplification to message and meta properties
     const processedMessage = simplifyObject(message);
-    if (meta.error) meta.error = simplifyObject(meta.error);
-    if (meta.reason) meta.reason = simplifyObject(meta.reason);
-    if (meta.details) {
-        if (Array.isArray(meta.details)) meta.details = meta.details.map(simplifyObject);
-        else meta.details = simplifyObject(meta.details);
+
+    // Process meta to simplify nested objects
+    const processedMeta = {};
+    for (const [key, value] of Object.entries(meta)) {
+        processedMeta[key] = simplifyObject(value);
     }
 
     logger.log({
         level,
         tag,
         message: typeof processedMessage === 'object' ? JSON.stringify(processedMessage, null, 2) : String(processedMessage),
-        ...meta
+        ...processedMeta
     });
 }
 
-module.exports = {
+const log = {
     err: (...args) => formatAndLog('error', args),
     error: (...args) => formatAndLog('error', args),
     warn: (...args) => formatAndLog('warn', args),
     info: (...args) => formatAndLog('info', args),
-    succes: (...args) => formatAndLog('success', args),
     success: (...args) => formatAndLog('success', args),
+    succes: (...args) => formatAndLog('success', args), // Compatibility with common typo
     debug: (...args) => formatAndLog('debug', args),
-    master: (...args) => formatAndLog('info', ['MASTER', ...args]),
-    dev: (...args) => {
-        // Log dev messages if NODE_ENV is development or if specifically enabled in config
-        if (process.env.NODE_ENV === 'development') formatAndLog('debug', ['DEV', ...args]);
+
+    // Specialized loggers for common bot tasks
+    command: (cmdName, userID, threadID, status = 'EXECUTE') => {
+        formatAndLog('info', ['COMMAND', `Command ${cmdName} ${status}`, { userID, threadID, commandName: cmdName }]);
     },
+
+    event: (eventName, threadID, details = '') => {
+        formatAndLog('info', ['EVENT', `${eventName}${details ? `: ${details}` : ''}`, { threadID, eventName }]);
+    },
+
+    master: (...args) => formatAndLog('info', ['MASTER', ...args]),
+
+    dev: (...args) => {
+        if (process.env.NODE_ENV === 'development' || global.GoatBot?.config?.logging?.logLevel === 'debug') {
+            formatAndLog('debug', ['DEV', ...args]);
+        }
+    },
+
     load: (...args) => formatAndLog('info', ['LOAD', ...args])
 };
+
+module.exports = log;

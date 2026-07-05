@@ -1,0 +1,57 @@
+{
+  "instagramAccount": {
+    "email": "your-email@example.com",
+    "password": "your-password",
+    "2FASecret": "optional-2fa-secret",
+    "i_user": "optional-user-id",
+    "proxy": null,
+    "userAgent": "Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+    "intervalGetNewCookie": 1440
+  },
+  "antiInbox": false,
+  "language": "en",
+  "nickNameBot": "GoatBot-IG",
+  "prefix": "!",
+  "noPrefix": true,
+  "adminBot": [
+    "YOUR_USER_ID_HERE"
+  ],
+  "premiumUsers": [],
+  "devUsers": [
+    "YOUR_USER_ID_HERE"
+  ],
+  "database": {
+    "type": "sqlite",
+    "autoSave": true,
+    "saveIntervalMinutes": 1
+  },
+  "timeZone": "UTC",
+  "dashBoard": {
+    "enable": true,
+    "port": 3000
+  },
+  "typingIndicator": {
+    "enable": true,
+    "duration": 1500
+  },
+  "humanDelay": {
+    "min": 1500,
+    "max": 4000
+  },
+  "logging": {
+    "logLevel": "info",
+    "logToFile": true,
+    "webhookUrl": ""
+  },
+  "AI_FALLBACK": {
+    "enable": false,
+    "command": "gpt"
+  },
+  "optionsFca": {
+    "online": true,
+    "autoMarkRead": true,
+    "autoReconnect": true,
+    "forceLogin": true,
+    "simulateTyping": true
+  }
+}

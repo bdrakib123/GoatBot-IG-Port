@@ -22,41 +22,42 @@ GoatBot-IG uses your browser cookies to authenticate with Instagram. This is saf
 
 ---
 
-## 🛡️ Anti-Ban Best Practices
+## 🛡️ Anti-Ban Best Practices (Enhanced)
 
-Using a bot on Instagram carries risks. Follow these guidelines to keep your account safe:
+Using a bot on Instagram carries risks. This port includes several enhancements inspired by `insta-p8` to keep your account safe:
 
-### 1. Use Natural Delays
-The bot is now equipped with `humanDelay`. It introduces a random delay (default 500ms - 2000ms) before responding.
+### 1. Natural Delays
+The bot is now equipped with `humanDelay`. It introduces a random delay before responding to simulate human behavior.
 - **Config:** `humanDelay` in `config/default.json`.
+- **Default:** 1.5s to 4s.
 
-### 2. Enable Realism Features
-- **Typing Indicators:** `typingIndicator` is enabled by default. It makes the bot look like it's typing before sending a message.
-- **Read Receipts:** The bot can automatically mark messages as seen.
+### 2. Typing Indicators
+The bot automatically sends a typing indicator before replying.
+- **Config:** `typingIndicator` in `config/default.json`.
+- **Realism:** It stays "typing" for a configurable duration (default 1.5s) to look natural.
 
-### 3. Avoid Spamming
-- Don't run the bot 24/7 on a new account.
-- Limit the number of groups the bot is in.
-- Use the built-in `spamProtection` to auto-ban users who abuse commands.
+### 3. Read Receipts
+The bot can automatically mark messages as seen. This is controlled via the API options in the configuration.
 
-### 4. Dedicated Account
-**Strongly Recommended:** Use a dedicated Instagram account for the bot, not your personal one.
+### 4. Robust Error Handling
+Global handlers for `unhandledRejection` and `uncaughtException` ensure the bot doesn't just crash silently. All errors are logged with full context in the `logs/` directory.
 
 ---
 
-## ⚙️ New Logging Features
+## ⚙️ Production Logging
 
-The logging system has been upgraded to a production-grade winston setup:
-- **Colored Console:** Easy to read logs with timestamps and levels.
-- **Daily Rotation:** Logs are saved in `./logs/` and rotated daily.
-- **Structured JSON:** Logs are saved as JSON for easy parsing.
-- **Discord Webhook:** (Optional) Forward logs to a Discord channel.
+The logging system has been completely overhauled with **Winston**:
+- **Colored Console:** Distinct colors for INFO, SUCCESS, WARN, ERROR, and DEBUG.
+- **Daily Rotation:** Logs are saved in `./logs/combined-YYYY-MM-DD.log` and kept for 14 days.
+- **Error Logs:** Separate `./logs/error-YYYY-MM-DD.log` for critical issues.
+- **Structured JSON:** Ideal for log shippers or the built-in Dashboard.
+- **Discord Webhook:** Forward critical logs and command usage to Discord.
   - Set `logging.webhookUrl` in `config/default.json`.
 
 ---
 
 ## 🤖 AI Fallback
 
-If a user sends a message starting with the prefix that doesn't match any command, the bot can forward it to an AI command (like `gpt`).
-- **Enable:** Set `AI_FALLBACK.enable` to `true` in `config/default.json`.
-- **Command:** Set `AI_FALLBACK.command` to the name of your AI command (e.g., `"gpt"`).
+Turn your bot into an AI assistant when commands aren't found!
+- **Enable:** Set `AI_FALLBACK.enable` to `true`.
+- **How it works:** If a user types `!hello` and no "hello" command exists, the bot routes the input to the AI command (default: `gpt`).

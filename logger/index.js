@@ -13,7 +13,6 @@ if (!fs.existsSync(logDir)) {
 
 let config = {};
 try {
-    // Correcting config path to use the bot's default config or the one in config/
     const configPath = path.join(process.cwd(), 'config', 'default.json');
     if (fs.existsSync(configPath)) {
         config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -73,7 +72,17 @@ class WebhookTransport extends winston.Transport {
     log(info, callback) {
         if (this.url) {
             axios.post(this.url, {
-                content: `**[${info.level.toUpperCase()}]** ${info.tag ? `[${info.tag}] ` : ''}${info.message}`
+                embeds: [{
+                    title: `Bot Log: ${info.level.toUpperCase()}`,
+                    description: `${info.tag ? `**Tag:** ${info.tag}\n` : ''}${info.message}`,
+                    color: info.level === 'error' ? 0xFF0000 : (info.level === 'warn' ? 0xFFFF00 : 0x00FF00),
+                    timestamp: info.timestamp,
+                    fields: Object.entries(info).filter(([k]) => !['level', 'message', 'tag', 'timestamp'].includes(k)).map(([k, v]) => ({
+                        name: k,
+                        value: typeof v === 'object' ? JSON.stringify(v).slice(0, 1024) : String(v).slice(0, 1024),
+                        inline: true
+                    }))
+                }]
             }).catch(() => {});
         }
         callback();
@@ -115,4 +124,15 @@ if (webhookUrl) {
 }
 
 const logger = winston.createLogger({ levels, transports });
+
+// Add a reconfigure method to update logger at runtime (e.g. after database load)
+logger.reconfigure = (newConfig) => {
+    const newLevel = newConfig.logging?.logLevel || logLevel;
+    logger.transports.forEach(t => {
+        if (t instanceof winston.transports.Console) {
+            t.level = newLevel;
+        }
+    });
+};
+
 module.exports = logger;

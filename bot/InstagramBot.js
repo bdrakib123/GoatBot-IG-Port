@@ -1,8 +1,8 @@
 'use strict';
 
-const loginNkxica = require('@neoaz07/nkxica').login;
-const loginFca = require('./instagram-fca/login-wrapper');
 const createDualFca = require('./DualFca');
+const loginIG = require('./login/loginIG');
+const handlerAction = require('./handler/handlerAction');
 
 const fs = require('fs-extra');
 const path = require('path');
@@ -19,6 +19,7 @@ class InstagramBot {
     this.api = null;
     this.userID = null;
     this.username = null;
+    this.config = config;
     this.commandLoader = new CommandLoader();
     this.eventLoader = new EventLoader(this);
     this.reconnectAttempts = 0;
@@ -26,6 +27,7 @@ class InstagramBot {
     this.isRunning = false;
     this.watchdogTimer = null;
     this.WATCHDOG_DELAY = 15 * 60 * 1000; // 15 minutes
+    this._initPromise = null;
 
     // Initialize global GoatBot structure for V2 compatibility
     global.GoatBot = {
@@ -41,87 +43,64 @@ class InstagramBot {
 
     global.utils = require('../utils.js');
     global.api = null;
+
+    this.setupProcessHandlers();
+  }
+
+  setupProcessHandlers() {
+      process.on('unhandledRejection', (reason, promise) => {
+          logger.error('Unhandled Rejection at:', { promise, reason: reason instanceof Error ? reason : String(reason) });
+      });
+
+      process.on('uncaughtException', (err) => {
+          logger.error('Uncaught Exception:', { error: err.message, stack: err.stack });
+          setTimeout(() => process.exit(1), 1000);
+      });
   }
 
   async start() {
-    this.startHealthServer();
-    this.keepAlive();
+    if (this._initPromise) return this._initPromise;
+    this._initPromise = (async () => {
+        this.startHealthServer();
+        this.keepAlive();
 
-    try {
-      await this.commandLoader.loadAll();
-      await this.eventLoader.loadAll();
+        try {
+            await this.commandLoader.loadAll();
+            await this.eventLoader.loadAll();
 
-      const database = require('../utils/database');
-      await database.ready;
+            const database = require('../utils/database');
+            await database.ready;
 
-      await this.loadAndLogin();
+            if (global.GoatBot.logger.reconfigure && database.data.config) {
+                global.GoatBot.logger.reconfigure(database.data.config);
+            }
 
-      this._scheduleAutoRestart();
-      this._scheduleAutoUptime();
-      this.isRunning = true;
+            const { nkxica, fca } = await loginIG(this.config);
+            this.nkxica = nkxica;
+            this.fca = fca;
 
-      this.eventLoader.handleEvent('ready', this);
+            this._afterLogin();
 
-    } catch (error) {
-      logger.error('Failed to start bot', { error: error.message, stack: error.stack });
-      if (this.shouldReconnect && this.reconnectAttempts < config.MAX_RECONNECT_ATTEMPTS) {
-        this.scheduleReconnect();
+            this._scheduleAutoRestart();
+            this._scheduleAutoUptime();
+            this.isRunning = true;
+
+            this.eventLoader.handleEvent('ready', this);
+
+        } catch (error) {
+            logger.error('Failed to start bot', { error: error.message, stack: error.stack });
+            if (this.shouldReconnect && this.reconnectAttempts < config.MAX_RECONNECT_ATTEMPTS) {
+                this.scheduleReconnect();
                 if (config.AUTO_RESTART_WHEN_MQTT_ERROR) {
                     logger.info("Auto-restart enabled. Exiting process...");
                     setTimeout(() => process.exit(1), 1000);
                 }
-      } else {
-        process.exit(1);
-      }
-    }
-  }
-
-  async loadAndLogin() {
-    let credentials = config.ACCOUNT_COOKIES;
-
-    if (!credentials && fs.existsSync(config.ACCOUNT_FILE)) {
-        credentials = fs.readFileSync(config.ACCOUNT_FILE, 'utf-8');
-    }
-
-    if (!credentials && config.ACCOUNT_EMAIL && config.ACCOUNT_PASSWORD) {
-        credentials = {
-            email: config.ACCOUNT_EMAIL,
-            password: config.ACCOUNT_PASSWORD,
-            twoFactorSecret: config.ACCOUNT_2FA_SECRET
-        };
-    }
-
-    if (!credentials) {
-        throw new Error('No credentials found. Please provide IG_COOKIES or set up account.txt / EMAIL & PASSWORD.');
-    }
-
-    logger.info('Logging in with nkxica (Primary)...');
-    try {
-        this.nkxica = await loginNkxica(credentials);
-        logger.info('nkxica login successful');
-    } catch (e) {
-        logger.error('nkxica login failed', { error: e.message });
-        logger.info('Attempting login with Instagram-FCA (Fallback)...');
-        try {
-            this.fca = await loginFca(credentials, config.OPTIONS_FCA);
-            logger.info('Instagram-FCA login successful');
-        } catch (fcaErr) {
-            logger.error('Instagram-FCA login failed', { error: fcaErr.message });
-            throw e;
+            } else {
+                process.exit(1);
+            }
         }
-    }
-
-    if (config.EXPERIMENTAL_FCA_ENABLE && !this.fca) {
-        try {
-            logger.info('Logging in with Instagram-FCA (Secondary)...');
-            this.fca = await loginFca(credentials, config.OPTIONS_FCA);
-            logger.info('Instagram-FCA login successful');
-        } catch (e) {
-            logger.warn('Instagram-FCA login failed, continuing with nkxica only.');
-        }
-    }
-
-    this._afterLogin();
+    })();
+    return this._initPromise;
   }
 
   _afterLogin() {
@@ -159,28 +138,7 @@ class InstagramBot {
     global.GoatBot.fcaApi = this.api;
     global.api = this.api;
 
-    this.api.listen((err, event) => {
-        if (err) {
-            logger.error('Listen error', { error: err.message });
-            // If the listener has a fatal error, we schedule a reconnect
-            if (this.isRunning && this.shouldReconnect) {
-                logger.warn('Fatal listen error detected. Restarting bot...');
-                this.isRunning = false;
-                this.scheduleReconnect();
-                if (config.AUTO_RESTART_WHEN_MQTT_ERROR) {
-                    logger.info("Auto-restart enabled. Exiting process...");
-                    setTimeout(() => process.exit(1), 1000);
-                }
-            }
-            return;
-        }
-        logger.debug(`Received event: ${event.type || "unknown"} from ${event.senderID || event.user_id || "unknown"}`);
-        this.resetWatchdog();
-        if (!event) return;
-
-        const normalizedEvent = this.normalizeEvent(event);
-        this.eventLoader.handleEvent(normalizedEvent.type, normalizedEvent);
-    });
+    handlerAction(this, this.api);
 
     const database = require('../utils/database');
     for (const [name, cmd] of this.commandLoader.commands) {
@@ -200,34 +158,6 @@ class InstagramBot {
     }
   }
 
-  normalizeEvent(event) {
-      const normalized = { ...event };
-
-      // Ensure threadID is always a string and present as threadID and threadId
-      const tid = normalized.threadID || normalized.thread_id || normalized.threadId;
-      if (tid) {
-          normalized.threadID = String(tid);
-          normalized.threadId = String(tid);
-      }
-
-      // Ensure senderID is always a string
-      const sid = normalized.senderID || normalized.user_id || normalized.userId;
-      if (sid) {
-          normalized.senderID = String(sid);
-      }
-
-      // Ensure messageID is always a string
-      const mid = normalized.messageID || normalized.item_id || normalized.itemId;
-      if (mid) {
-          normalized.messageID = String(mid);
-      }
-
-      // Handle body
-      normalized.body = normalized.body || normalized.text || '';
-
-      return normalized;
-  }
-
   createNkxicaWrapper() {
     const ig = this.nkxica;
     const self = this;
@@ -236,11 +166,24 @@ class InstagramBot {
       sendMessage: async (form, threadID, callback, replyToMessageID) => {
           let finalForm = form;
           if (typeof form === 'string') finalForm = { body: form };
+
           try {
+              if (config.TYPING_INDICATOR) {
+                  await ig.sendTypingIndicator(threadID).catch(() => {});
+                  await new Promise(resolve => setTimeout(resolve, config.TYPING_INDICATOR_DURATION || 1000));
+              }
+
+              if (config.HUMAN_DELAY) {
+                  const { min, max } = config.HUMAN_DELAY;
+                  const delay = Math.floor(Math.random() * (max - min + 1)) + min;
+                  await new Promise(resolve => setTimeout(resolve, delay));
+              }
+
               const res = await ig.sendMessage(finalForm, threadID, null, replyToMessageID);
               if (callback) callback(null, res);
               return res;
           } catch (e) {
+              logger.error('sendMessage failed', { error: e.message, threadID });
               if (callback) callback(e);
               throw e;
           }
@@ -265,6 +208,9 @@ class InstagramBot {
       getCurrentUserID: () => {
           if (typeof ig.getCurrentUserID === 'function') return ig.getCurrentUserID();
           return ig.userID || ig.id || 'unknown';
+      },
+      sendTypingIndicator: (threadID) => {
+          if (typeof ig.sendTypingIndicator === 'function') return ig.sendTypingIndicator(threadID);
       }
     };
 
@@ -284,7 +230,6 @@ class InstagramBot {
           const url = new URL(req.url, `http://${req.headers.host}`);
           const pathname = url.pathname;
 
-          // Dashboard HTML
           if (pathname === '/' || pathname === '/index.html') {
               const dashPath = path.join(__dirname, '../dashboard/index.html');
               if (fs.existsSync(dashPath)) {
@@ -298,7 +243,6 @@ class InstagramBot {
               return res.end('OK');
           }
 
-          // API Endpoints (Supports both /api/path and /path for dashboard compatibility)
           const apiPath = pathname.startsWith('/api/') ? pathname.slice(4) : pathname;
 
           if (pathname.startsWith('/api/') || ['/status', '/threads', '/thread', '/users', '/commands', '/logs'].some(p => pathname.startsWith(p))) {

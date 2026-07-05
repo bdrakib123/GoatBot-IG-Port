@@ -10,9 +10,12 @@ module.exports = {
     warn: (message, meta = {}) => log.warn(message, meta),
     error: (message, meta = {}) => log.error(message, meta),
     debug: (message, meta = {}) => log.debug(message, meta),
-    command: (name, user, ok = true) => {
-        const message = `${name} executed by ${user}`;
-        if (ok) log.success('COMMAND', message);
-        else log.error('COMMAND', message);
+    command: (name, user, threadID, status = 'EXECUTE') => log.command(name, user, threadID, status),
+    event: (name, threadID, details = '') => log.event(name, threadID, details),
+    load: (...args) => log.load(...args),
+    reconfigure: (config) => {
+        if (log.reconfigure) log.reconfigure(config);
+        const loggerIndex = require('../logger/index.js');
+        if (loggerIndex.reconfigure) loggerIndex.reconfigure(config);
     }
 };
