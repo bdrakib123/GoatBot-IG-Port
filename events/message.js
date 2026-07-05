@@ -170,7 +170,7 @@ module.exports = {
 
       const requiredRole = command.config.role || 0;
       let threadInfo = null;
-      if (requiredRole === 1) threadInfo = await bot.getThreadInfo(event.threadId).catch(() => null);
+      if (requiredRole === 1) threadInfo = await bot.api.getThreadInfo(event.threadId).catch(() => null);
       const hasPermission = await PermissionManager.hasPermission(event.senderID, requiredRole, threadInfo);
       if (!hasPermission) {
           if (!config.HIDE_NOTI.needRoleToUseCmd) {
@@ -216,6 +216,7 @@ module.exports = {
           };
 
           logger.info(`Executing command: ${command.config.name} for ${event.senderID}`);
+          bot.logActivity(`Command ${command.config.name} executed by ${event.senderID}`);
           if (typeof command.onStart === 'function') {
               await command.onStart(commandParams);
           } else if (typeof command.run === 'function') {

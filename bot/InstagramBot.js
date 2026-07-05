@@ -32,6 +32,7 @@ class InstagramBot {
     this.reconnectAttempts = 0;
     this.shouldReconnect   = config.AUTO_RECONNECT;
     this.isRunning         = false;
+    this.recentActivity    = [];
     this._reminderTimer     = null;
     this._autoRemoveTimer   = null;
     this._uptimeTimer       = null;
@@ -55,17 +56,51 @@ class InstagramBot {
     global.api = null;
   }
 
+  logActivity(text) {
+    this.recentActivity.unshift({ text, time: Date.now() });
+    if (this.recentActivity.length > 50) this.recentActivity.pop();
+  }
+
+  async readLogs() {
+    const logDir = path.join(process.cwd(), 'logs');
+    if (!fs.existsSync(logDir)) return [];
+
+    try {
+        const files = fs.readdirSync(logDir)
+            .filter(f => f.startsWith('combined-') && f.endsWith('.log'))
+            .sort((a, b) => b.localeCompare(a));
+
+        if (files.length === 0) return [];
+
+        const logPath = path.join(logDir, files[0]);
+        const content = fs.readFileSync(logPath, 'utf8');
+        return content.split('\n')
+            .filter(line => line.trim())
+            .map(line => {
+                try {
+                    const parsed = JSON.parse(line);
+                    return {
+                        time: parsed.timestamp || parsed.time,
+                        level: (parsed.level || 'INFO').toUpperCase(),
+                        message: parsed.message,
+                        tag: parsed.tag
+                    };
+                } catch (e) {
+                    return { time: '', level: 'INFO', message: line };
+                }
+            })
+            .reverse()
+            .slice(0, 100);
+    } catch (e) {
+        return [];
+    }
+  }
+
   startHealthServer() {
     if (this._healthServer) return this._healthServer;
 
     const port = parseInt(process.env.PORT || config.DASHBOARD_PORT || 3000, 10);
     const dashboardHtml = path.join(__dirname, '..', 'dashboard', 'index.html');
-
-    const recentActivity = [];
-    this._logActivity = (text) => {
-      recentActivity.unshift({ text, time: Date.now() });
-      if (recentActivity.length > 20) recentActivity.pop();
-    };
 
     const server = http.createServer(async (req, res) => {
       const url = req.url.split('?')[0];
@@ -117,8 +152,73 @@ class InstagramBot {
           dashboardURL: process.env.RENDER_EXTERNAL_URL || 'http://localhost:' + port,
           uptimeURL:    (process.env.RENDER_EXTERNAL_URL || 'http://localhost:' + port) + '/uptime',
           externalURL:  process.env.RENDER_EXTERNAL_URL || '',
-          stats:        database.getAllStats()
+          stats:        database.getAllStats(),
+          recentActivity: this.recentActivity
         });
+      }
+
+      if (route === '/threads') {
+          if (!this.ica) return json({ threads: [] });
+          try {
+              const inbox = await this.ica.getInbox();
+              const threads = inbox.threads.map(t => ({
+                  threadID: t.thread_id,
+                  name: t.thread_title || t.users?.map(u => u.full_name).join(', '),
+                  isGroup: t.is_group,
+                  participantCount: t.users?.length || 0,
+                  snippet: t.last_permanent_item?.text || ''
+              }));
+              return json({ threads });
+          } catch (e) {
+              return json({ threads: [], error: e.message });
+          }
+      }
+
+      if (route.startsWith('/thread/')) {
+          const tid = route.slice(8);
+          if (!this.ica) return json({ error: 'Not connected' });
+          try {
+              const members = await this.ica.getThreadParticipants(tid);
+              const participants = members.map(u => ({
+                  userID: String(u.pk || u.id),
+                  name: u.full_name || u.name,
+                  username: u.username,
+                  isAdmin: !!u.is_admin
+              }));
+              return json({ threadID: tid, participants });
+          } catch (e) {
+              return json({ error: e.message });
+          }
+      }
+
+      if (route === '/users') {
+          const database = require('../utils/database');
+          const users = database.getAllUsers();
+          return json({
+              users,
+              economy: database.data.economy || {},
+              banned: Array.from(database.data.bannedUsers || [])
+          });
+      }
+
+      if (route === '/commands') {
+          const cmds = this.commandLoader.getAllCommandNames().map(name => {
+              const cmd = this.commandLoader.getCommand(name);
+              return {
+                  name: cmd.config.name,
+                  description: cmd.config.description,
+                  category: cmd.config.category,
+                  aliases: cmd.config.aliases || [],
+                  role: cmd.config.role || 0,
+                  cooldown: cmd.config.cooldown || 0
+              };
+          });
+          return json({ commands: cmds });
+      }
+
+      if (route === '/logs') {
+          const logs = await this.readLogs();
+          return json({ logs });
       }
 
       res.writeHead(404); res.end('Not found');
@@ -170,6 +270,13 @@ class InstagramBot {
         } catch (error) {
           logger.error('Failed to start bot', { error: error.message, stack: error.stack });
           this._initPromise = null;
+          const isFatal = error.message?.includes('checkpoint') || error.message?.includes('467');
+          if (isFatal) {
+              logger.error('Fatal authentication error detected. Bot will remain idle for dashboard access.');
+              this.logActivity(`Fatal Error: ${error.message}`);
+              return; // Keep process alive for health server
+          }
+
           if (this.shouldReconnect && this.reconnectAttempts < config.MAX_RECONNECT_ATTEMPTS) {
             this.scheduleReconnect();
           } else {
@@ -189,6 +296,7 @@ class InstagramBot {
 
     await this.loadAndLogin();
     this.isRunning = true;
+    this.logActivity('Bot successfully logged in and started');
     this.eventLoader.handleEvent('ready', this);
   }
 
@@ -214,7 +322,9 @@ class InstagramBot {
                     }
                 } else {
                     if (validate.error && (validate.error.includes('checkpoint') || validate.error.includes('467'))) {
-                        logger.error('Account is stuck on a checkpoint or 467 error. Manual intervention in a browser is required.');
+                        const msg = 'Account is stuck on a checkpoint or 467 error. Manual intervention in a browser is required.';
+                        logger.error(msg);
+                        throw new Error(msg);
                     }
                     logger.warn('Cookies loaded but validation returned error. Proceeding anyway...');
                 }
@@ -265,12 +375,13 @@ class InstagramBot {
     this.ica.startListening({ interval: 5000 });
 
     const database = require('../utils/database');
-    for (const [name, cmd] of this.commandLoader.commands) {
+    const uniqueCommands = new Set(this.commandLoader.commands.values());
+    for (const cmd of uniqueCommands) {
         if (typeof cmd.onLoad === 'function') {
             try {
                 cmd.onLoad({ api: this.api, bot: this, database, usersData: database.usersData, threadsData: database.threadsData });
             } catch (e) {
-                logger.error(`Error in onLoad of ${name}`, { error: e.message });
+                logger.error(`Error in onLoad of ${cmd.config.name}`, { error: e.message });
             }
         }
     }
@@ -306,8 +417,8 @@ class InstagramBot {
 
           try {
               let res;
-              if (typeof form === 'object' && form.attachment) {
-                  const attachment = form.attachment;
+              if (typeof form === 'object' && (form.attachment || form.attachments)) {
+                  const attachment = form.attachment || (Array.isArray(form.attachments) ? form.attachments[0] : null);
                   const type = form.type || 'photo';
 
                   if (typeof attachment === 'string') {
@@ -319,10 +430,30 @@ class InstagramBot {
                           else if (type === 'audio') res = await ica.sendVoiceNote(threadID, attachment, options);
                           else res = await ica.sendPhoto(threadID, attachment, { caption: text, ...options });
                       }
+                  } else if (Buffer.isBuffer(attachment) || (attachment && typeof attachment.pipe === 'function')) {
+                      const tempDir = path.join(process.cwd(), 'temp');
+                      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+                      const ext = type === 'video' ? 'mp4' : type === 'audio' ? 'mp3' : 'jpg';
+                      const tempPath = path.join(tempDir, `msg_${Date.now()}.${ext}`);
+
+                      if (Buffer.isBuffer(attachment)) {
+                          fs.writeFileSync(tempPath, attachment);
+                      } else {
+                          const writer = fs.createWriteStream(tempPath);
+                          attachment.pipe(writer);
+                          await new Promise((resolve, reject) => {
+                              writer.on('finish', resolve);
+                              writer.on('error', reject);
+                          });
+                      }
+
+                      if (type === 'video') res = await ica.sendVideo(threadID, tempPath, { caption: text, ...options });
+                      else if (type === 'audio') res = await ica.sendVoiceNote(threadID, tempPath, options);
+                      else res = await ica.sendPhoto(threadID, tempPath, { caption: text, ...options });
+
+                      setTimeout(() => fs.unlink(tempPath).catch(() => {}), 10000);
                   } else {
-                      if (type === 'video') res = await ica.sendVideo(threadID, attachment, { caption: text, ...options });
-                      else if (type === 'audio') res = await ica.sendVoiceNote(threadID, attachment, options);
-                      else res = await ica.sendPhoto(threadID, attachment, { caption: text, ...options });
+                      res = await ica.sendMessage(threadID, text, options);
                   }
               } else {
                   res = await ica.sendMessage(threadID, text, options);
@@ -383,14 +514,20 @@ class InstagramBot {
           return user;
       },
       getThreadInfo: async (threadID) => {
-          const t = await ica.getThread(threadID);
-          if (t) {
-              t.threadID = t.thread_id || t.id;
-              t.participantIDs = t.users?.map(u => String(u.pk || u.id)) || [];
-              t.adminIDs = t.participants?.filter(p => p.isAdmin)?.map(p => ({ id: String(p.userID) })) || [];
-              t.threadName = t.thread_title || t.name || '';
+          try {
+              const members = await ica.getThreadParticipants(threadID);
+              const t = await ica.getThread(threadID);
+              return {
+                  ...t,
+                  threadID: t.thread_id || threadID,
+                  participantIDs: members.map(u => String(u.pk || u.id)),
+                  adminIDs: members.filter(u => u.is_admin).map(u => ({ id: String(u.pk || u.id) })),
+                  threadName: t.thread_title || '',
+                  isGroup: !!t.is_group
+              };
+          } catch (e) {
+              return null;
           }
-          return t;
       },
       getThreadList: async (limit, folder) => {
           const inbox = await ica.getInbox();
@@ -491,6 +628,12 @@ class InstagramBot {
     setTimeout(() => {
         this.loginAndStart().catch(err => {
             logger.error('Reconnection failed', { error: err.message });
+            const isFatal = err.message?.includes('checkpoint') || err.message?.includes('467');
+            if (isFatal) {
+                 logger.error('Stopping reconnection due to fatal error');
+                 // Keep process alive for dashboard
+                 return;
+            }
             this.scheduleReconnect();
         });
     }, delay);
