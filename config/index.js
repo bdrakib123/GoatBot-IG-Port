@@ -133,8 +133,8 @@ module.exports = {
 
   AUTO_REMOVE_ERROR: c.autoRemoveError || { enable: true, delay: 10 },
 
-  OPTIONS_ICA: (() => {
-    const o = c.optionsIca || {};
+  OPTIONS_FCA: (() => {
+    const o = c.optionsFca || {};
     const clean = {};
     for (const [k, v] of Object.entries(o)) {
       if (k !== 'notes') clean[k] = v;
