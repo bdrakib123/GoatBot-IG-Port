@@ -24,6 +24,8 @@ module.exports = {
         logger.info(`Message from ${event.senderID} in ${event.threadID}: ${event.body || '[Media]'}`);
       }
 
+      logger.debug('[MessageEvent] Processing event', { sender: event.senderID, thread: event.threadID, body: event.body });
+
       const threadData = database.getThreadData(event.threadId);
       const prefix = threadData?.prefix || config.PREFIX;
 
@@ -52,19 +54,25 @@ module.exports = {
           }
       }
 
-      if (!event.body) return;
-      const bodyLower = event.body.toLowerCase().trim();
+      if (!event.body && (!event.attachments || event.attachments.length === 0)) {
+          logger.debug('[MessageEvent] Empty body and no attachments');
+          return;
+      }
+      const bodyLower = (event.body || '').toLowerCase().trim();
       if (bodyLower === 'prefix') {
         await api.sendMessage(`🌐 Global prefix: ${config.PREFIX}\n🛸 Thread prefix: ${prefix}`, event.threadId);
         return;
       }
 
-      const startsWithPrefix = event.body.startsWith(prefix);
+      const startsWithPrefix = event.body?.startsWith(prefix);
       const noPrefixAllowed  = config.NO_PREFIX && PermissionManager.canUseNoPrefix(event.senderID);
 
-      if (!startsWithPrefix && !noPrefixAllowed) return;
+      if (!startsWithPrefix && !noPrefixAllowed) {
+          logger.debug('[MessageEvent] Not a command', { startsWithPrefix, noPrefixAllowed });
+          return;
+      }
 
-      let rawBody = event.body;
+      let rawBody = event.body || '';
       if (startsWithPrefix) rawBody = event.body.slice(prefix.length);
       const args = rawBody.trim().split(/ +/);
       const commandName = args.shift().toLowerCase();
@@ -77,6 +85,7 @@ module.exports = {
       const command = commandLoader.getCommand(commandName);
 
       if (!command) {
+        logger.debug('[MessageEvent] Command not found', { commandName });
         if (startsWithPrefix && !config.HIDE_NOTI.commandNotFound) {
           if (config.AI_FALLBACK?.enable) {
             const aiCommandName = config.AI_FALLBACK.command || 'gpt';
@@ -120,6 +129,16 @@ module.exports = {
                           }
                       }
                       return sent;
+                  };
+              }
+              if (prop === 'unsendMessage') {
+                  return async (messageID, callback) => {
+                      return await target.unsendMessage(event.threadId, messageID, callback);
+                  };
+              }
+              if (prop === 'setMessageReaction') {
+                  return async (emoji, messageID, callback) => {
+                      return await target.sendReaction(event.threadId, messageID || event.messageID, emoji);
                   };
               }
               return target[prop];
@@ -184,8 +203,8 @@ module.exports = {
               message: {
                   reply: (form, callback) => replyApi.sendMessage(form, event.threadId, callback, event.messageID),
                   send: (form, callback) => replyApi.sendMessage(form, event.threadId, callback),
-                  reaction: (emoji, messageID, callback) => api.setMessageReaction(emoji, messageID || event.messageID, callback),
-                  unsend: (messageID, callback) => api.unsendMessage(messageID || event.messageID, callback),
+                  reaction: (emoji, messageID, callback) => replyApi.setMessageReaction(emoji, messageID || event.messageID, callback),
+                  unsend: (messageID, callback) => replyApi.unsendMessage(messageID || event.messageID, callback),
                   err: async (err) => {
                       const msg = typeof err === 'object' ? err.message || JSON.stringify(err) : String(err);
                       return await replyApi.sendMessage(`❌ Error: ${msg}`, event.threadId);

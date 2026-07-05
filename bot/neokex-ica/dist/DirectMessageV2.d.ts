@@ -142,6 +142,10 @@ export default class DirectMessageV2 {
     _seedSeenIds(): Promise<void>;
     startPolling(intervalOrOptions?: number): Promise<void>;
     _pollCycle(): Promise<boolean>;
+    _extractAttachments(item: any): {
+        type: string;
+        url: any;
+    }[];
     stopPolling(): void;
     restartPolling(intervalOrOptions: any): Promise<void>;
 }

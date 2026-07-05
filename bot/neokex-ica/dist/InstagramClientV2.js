@@ -14,6 +14,7 @@ export default class InstagramClientV2 extends EventEmitter {
         this.username = null;
         this.isLoggedIn = false;
         this.cookies = {};
+        this.optionsIca = {};
     }
     async login(username, password) {
         try {
@@ -55,6 +56,9 @@ export default class InstagramClientV2 extends EventEmitter {
                 this.username = cookies.ds_user_name;
             else if (cookies.username)
                 this.username = cookies.username;
+            if (this.optionsIca?.userAgent) {
+                this.ig.state.userAgent = this.optionsIca.userAgent;
+            }
             this.ig.state.generateDevice(this.userId);
             for (const [name, value] of Object.entries(cookies)) {
                 await this.ig.state.cookieJar.setCookie(`${name}=${value}; Domain=.instagram.com; Path=/;`, 'https://instagram.com');
@@ -83,10 +87,6 @@ export default class InstagramClientV2 extends EventEmitter {
         this.cookies = { ...this.cookies, ...cookies };
         if (cookies.ds_user_id)
             this.userId = cookies.ds_user_id;
-        if (cookies.ds_user_name)
-            this.username = cookies.ds_user_name;
-        else if (cookies.username)
-            this.username = cookies.username;
         this.isLoggedIn = true;
     }
     getCookies() {
@@ -128,7 +128,7 @@ export default class InstagramClientV2 extends EventEmitter {
             catch (e) {
                 lastError = e;
                 const msg = e.message?.toLowerCase() || '';
-                if (msg.includes('login_required') || msg.includes('checkpoint'))
+                if (msg.includes('login_required') || msg.includes('checkpoint') || msg.includes('467'))
                     break;
             }
         }

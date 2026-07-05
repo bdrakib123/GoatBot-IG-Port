@@ -14,7 +14,11 @@ const Banner        = require('../utils/banner');
 // Bridge to ESM neokex-ica
 async function createIca() {
     const { InstagramChatAPI } = await import('./neokex-ica/src/index.js');
-    return new InstagramChatAPI({ showBanner: true });
+    return new InstagramChatAPI({
+        showBanner: true,
+        selfListen: config.OPTIONS_ICA?.selfListen ?? false,
+        userAgent: config.ACCOUNT_USER_AGENT || undefined
+    });
 }
 
 class InstagramBot {
@@ -31,6 +35,7 @@ class InstagramBot {
     this._reminderTimer     = null;
     this._autoRemoveTimer   = null;
     this._uptimeTimer       = null;
+    this._presenceTimer     = null;
     this._cookieRefreshTimer = null;
     this._healthServer      = null;
     this._initPromise       = null;
@@ -160,6 +165,7 @@ class InstagramBot {
           this._startReminderScheduler();
           this._startAutoRemoveScheduler();
           this._startUptimeMonitor();
+          this._startPresenceUpdater();
 
         } catch (error) {
           logger.error('Failed to start bot', { error: error.message, stack: error.stack });
@@ -211,7 +217,6 @@ class InstagramBot {
                         logger.error('Account is stuck on a checkpoint or 467 error. Manual intervention in a browser is required.');
                     }
                     logger.warn('Cookies loaded but validation returned error. Proceeding anyway...');
-                    // Don't throw here to allow the bot to try its luck if cookies are present.
                 }
             }
         } else if (hasCredentials) {
@@ -247,7 +252,7 @@ class InstagramBot {
 
     this.ica.on('error', (err) => {
         logger.error('ICA Error event', { error: err.message });
-        if (err.message?.includes('session') || err.message?.includes('401')) {
+        if (err.message?.includes('session') || err.message?.includes('401') || err.message?.includes('467')) {
             this.scheduleReconnect();
         }
     });
@@ -280,17 +285,14 @@ class InstagramBot {
           senderID: String(event.user_id),
           body: event.text || '',
           timestamp: event.timestamp,
-          attachments: (event.attachments || []).map(a => ({
-              type: a.type,
-              url: a.url
-          })),
+          attachments: event.attachments || [],
           messageReply: event.messageReply ? {
               messageID: String(event.messageReply.item_id),
               senderID: String(event.messageReply.user_id),
               body: event.messageReply.text,
               attachments: []
           } : null,
-          isGroup: !!event.thread_title,
+          isGroup: !!event.thread_title || (event.thread_users && event.thread_users.length > 1),
           mentions: event.mentions || {}
       };
   }
@@ -338,13 +340,9 @@ class InstagramBot {
               throw e;
           }
       },
-      unsendMessage: async (arg1, arg2) => {
-          let threadId = null;
-          let itemId = arg1;
-          let callback = typeof arg2 === 'function' ? arg2 : null;
-
+      unsendMessage: async (threadID, messageID, callback) => {
           try {
-              const res = await ica.unsendMessage(threadId, itemId);
+              const res = await ica.unsendMessage(threadID, messageID);
               if (callback) callback(null, res);
               return res;
           } catch (e) {
@@ -352,9 +350,9 @@ class InstagramBot {
               throw e;
           }
       },
-      setMessageReaction: async (emoji, messageID, callback) => {
+      setMessageReaction: async (emoji, messageID, callback, threadID) => {
           try {
-              const res = await ica.sendReaction(null, messageID, emoji);
+              const res = await ica.sendReaction(threadID, messageID, emoji);
               if (callback) callback(null, res);
               return res;
           } catch (e) {
@@ -427,6 +425,20 @@ class InstagramBot {
           } catch (e) {
               logger.warn('Uptime monitor: Ping failed', { error: e.message });
           }
+      }, interval);
+  }
+
+  _startPresenceUpdater() {
+      if (this._presenceTimer) clearInterval(this._presenceTimer);
+      if (!config.OPTIONS_ICA?.updatePresence) return;
+      const interval = 60 * 1000;
+      this._presenceTimer = setInterval(async () => {
+          try {
+              if (this.ica) {
+                  const ig = this.ica.getIgClient();
+                  await ig.direct.getPresence();
+              }
+          } catch (e) {}
       }, interval);
   }
 
