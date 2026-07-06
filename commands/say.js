@@ -3,17 +3,17 @@ const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
 
-const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 module.exports = {
   config: {
     name: "say",
-    version: "1.9",
+    version: "2.2",
     author: "Samir Œ & Jules",
     cooldown: 5,
     role: 0,
     category: "tts",
-    description: "Convert text to voice with fallback support",
+    description: "Convert text to voice with extreme-resilience fallback",
     usage: "say <text> | <lang_code>"
   },
 
@@ -40,7 +40,6 @@ module.exports = {
       return message.reply(`Please provide some text or reply to a message.`);
     }
 
-    // Use os.tmpdir() for cross-platform reliability
     const tempPath = path.join(os.tmpdir(), `tts_${Date.now()}.mp3`);
 
     try {
@@ -56,49 +55,69 @@ module.exports = {
 
       for (let i = 0; i < finalChunks.length; i++) {
         let response;
-        try {
-            // Service 1: Google Translate (Standard)
-            response = await axios({
-              method: "get",
-              url: `https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&q=${encodeURIComponent(finalChunks[i])}`,
-              responseType: "arraybuffer",
-              headers: { "User-Agent": UA },
-              timeout: 10000
-            });
-        } catch (e1) {
+        let lastError;
+        const encodedText = encodeURIComponent(finalChunks[i]);
+
+        const services = [
+            {
+                name: "Google (tw-ob)",
+                url: `https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&q=${encodedText}`
+            },
+            {
+                name: "Google (gtx)",
+                url: `https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=${lang}&client=gtx&q=${encodedText}`
+            },
+            {
+                name: "Google (t-vn)",
+                url: `https://translate.google.com.vn/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&q=${encodedText}`
+            }
+        ];
+
+        let success = false;
+        for (const service of services) {
             try {
-                // Service 2: Google APIs (Fallback)
                 response = await axios({
                     method: "get",
-                    url: `https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=${lang}&client=gtx&q=${encodeURIComponent(finalChunks[i])}`,
+                    url: service.url,
                     responseType: "arraybuffer",
-                    headers: { "User-Agent": UA },
+                    headers: {
+                        "User-Agent": UA,
+                        "Referer": "https://translate.google.com/",
+                        "Accept": "*/*"
+                    },
                     timeout: 10000
                 });
-            } catch (e2) {
-                throw new Error(`TTS Services failed (Primary: ${e1.message}, Fallback: ${e2.message})`);
+                if (response.status === 200 && response.data.length > 0) {
+                    success = true;
+                    break;
+                }
+            } catch (e) {
+                lastError = `${service.name}: ${e.response ? e.response.status : e.message}`;
             }
         }
+
+        if (!success) {
+            throw new Error(`TTS Conversion Failed. ${lastError}`);
+        }
+
         await fs.appendFile(tempPath, Buffer.from(response.data));
       }
 
       const stats = await fs.stat(tempPath);
       if (stats.size === 0) throw new Error("Generated TTS file is empty");
 
-      // Pass a stream with a filename to help the bot core detect the extension
       const stream = fs.createReadStream(tempPath);
-      stream.name = 'tts.mp3'; // Compatibility helper for extension detection
+      stream.name = 'tts.mp3';
 
       await message.reply({
         attachment: stream
       });
 
-      // Cleanup after a delay
       setTimeout(() => fs.remove(tempPath).catch(() => {}), 30000);
 
     } catch (err) {
       console.error(err);
-      message.reply(`❌ Error: ${err.message || "An error occurred during TTS conversion."}`);
+      message.reply(`❌ Error: ${err.message}`);
       if (fs.existsSync(tempPath)) fs.remove(tempPath).catch(() => {});
     }
   }
