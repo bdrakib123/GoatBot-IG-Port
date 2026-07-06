@@ -243,7 +243,7 @@ class InstagramBot {
 
     if (hasValidCookies) {
       logger.info('Loading cookies from account.txt...');
-      this.ig = await login(cookieContent);
+      let loginData = cookieContent; try { const parsed = JSON.parse(cookieContent); if (parsed.cookies && Array.isArray(parsed.cookies.cookies)) loginData = parsed.cookies.cookies; else if (parsed.cookies && Array.isArray(parsed.cookies)) loginData = parsed.cookies; else if (Array.isArray(parsed)) loginData = parsed; } catch (e) {} this.ig = await login(loginData);
     } else if (hasCredentials) {
       logger.info('No valid cookies found — logging in with email/password...');
       this.ig = await login({
