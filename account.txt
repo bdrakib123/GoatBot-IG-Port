@@ -1,10 +1,10 @@
 {
-  "deviceId": "android-d21396c90271e8bb",
-  "phoneId": "be86c531-6c27-4480-ba89-d3798920d33b",
-  "uuid": "a85ac782-f112-49c8-8ee7-7cbb250ca465",
-  "advertisingId": "bb290f4b-d0e7-43f1-9283-d68203f56ca5",
-  "sessionId": "31e23d7f-681f-4dcc-b6f4-5fce470c99e1",
-  "clientSessionId": "430c78f6-dd8e-482e-9570-b1530da25f4c",
+  "deviceId": "android-529d9c90d6083318",
+  "phoneId": "e5926329-b94d-48d1-9976-6bcfe0a2e5bc",
+  "uuid": "5efdbe90-de16-4e18-b58f-a6c87deef569",
+  "advertisingId": "336980fc-ffb5-45ec-a096-031354a944ec",
+  "sessionId": "7f317049-4a53-4c11-85b7-6f3fdd741e22",
+  "clientSessionId": "c9949a2d-1a0b-44e9-8e32-da3747d093bd",
   "username": null,
   "userId": null,
   "fullName": null,
@@ -25,8 +25,9 @@
         "secure": true,
         "httpOnly": true,
         "hostOnly": false,
-        "creation": "2026-07-05T18:33:19.861Z",
-        "lastAccessed": "2026-07-05T18:33:19.861Z"
+        "creation": "2026-07-06T05:48:43.504Z",
+        "lastAccessed": "2026-07-06T05:48:43.504Z",
+        "sameSite": "lax"
       },
       {
         "key": "datr",
@@ -37,8 +38,9 @@
         "secure": true,
         "httpOnly": true,
         "hostOnly": false,
-        "creation": "2026-07-05T18:33:19.864Z",
-        "lastAccessed": "2026-07-05T18:33:19.864Z"
+        "creation": "2026-07-06T05:48:43.509Z",
+        "lastAccessed": "2026-07-06T05:48:43.509Z",
+        "sameSite": "lax"
       },
       {
         "key": "ds_user_id",
@@ -48,8 +50,9 @@
         "path": "/",
         "secure": true,
         "hostOnly": false,
-        "creation": "2026-07-05T18:33:19.864Z",
-        "lastAccessed": "2026-07-05T18:33:19.864Z"
+        "creation": "2026-07-06T05:48:43.509Z",
+        "lastAccessed": "2026-07-06T05:48:43.509Z",
+        "sameSite": "lax"
       },
       {
         "key": "csrftoken",
@@ -59,8 +62,9 @@
         "path": "/",
         "secure": true,
         "hostOnly": false,
-        "creation": "2026-07-05T18:33:19.864Z",
-        "lastAccessed": "2026-07-05T18:33:19.864Z"
+        "creation": "2026-07-06T05:48:43.509Z",
+        "lastAccessed": "2026-07-06T05:48:43.509Z",
+        "sameSite": "lax"
       },
       {
         "key": "ig_did",
@@ -71,8 +75,9 @@
         "secure": true,
         "httpOnly": true,
         "hostOnly": false,
-        "creation": "2026-07-05T18:33:19.864Z",
-        "lastAccessed": "2026-07-05T18:33:19.864Z"
+        "creation": "2026-07-06T05:48:43.509Z",
+        "lastAccessed": "2026-07-06T05:48:43.509Z",
+        "sameSite": "lax"
       },
       {
         "key": "ps_l",
@@ -83,8 +88,9 @@
         "secure": true,
         "httpOnly": true,
         "hostOnly": false,
-        "creation": "2026-07-05T18:33:19.865Z",
-        "lastAccessed": "2026-07-05T18:33:19.865Z"
+        "creation": "2026-07-06T05:48:43.509Z",
+        "lastAccessed": "2026-07-06T05:48:43.509Z",
+        "sameSite": "lax"
       },
       {
         "key": "wd",
@@ -94,8 +100,9 @@
         "path": "/",
         "secure": true,
         "hostOnly": false,
-        "creation": "2026-07-05T18:33:19.865Z",
-        "lastAccessed": "2026-07-05T18:33:19.865Z"
+        "creation": "2026-07-06T05:48:43.509Z",
+        "lastAccessed": "2026-07-06T05:48:43.509Z",
+        "sameSite": "lax"
       },
       {
         "key": "mid",
@@ -105,8 +112,9 @@
         "path": "/",
         "secure": true,
         "hostOnly": false,
-        "creation": "2026-07-05T18:33:19.865Z",
-        "lastAccessed": "2026-07-05T18:33:19.865Z"
+        "creation": "2026-07-06T05:48:43.509Z",
+        "lastAccessed": "2026-07-06T05:48:43.509Z",
+        "sameSite": "lax"
       },
       {
         "key": "sessionid",
@@ -117,8 +125,9 @@
         "secure": true,
         "httpOnly": true,
         "hostOnly": false,
-        "creation": "2026-07-05T18:33:19.865Z",
-        "lastAccessed": "2026-07-05T18:33:19.865Z"
+        "creation": "2026-07-06T05:48:43.510Z",
+        "lastAccessed": "2026-07-06T05:48:43.510Z",
+        "sameSite": "lax"
       },
       {
         "key": "dpr",
@@ -128,8 +137,9 @@
         "path": "/",
         "secure": true,
         "hostOnly": false,
-        "creation": "2026-07-05T18:33:19.866Z",
-        "lastAccessed": "2026-07-05T18:33:19.866Z"
+        "creation": "2026-07-06T05:48:43.511Z",
+        "lastAccessed": "2026-07-06T05:48:43.511Z",
+        "sameSite": "lax"
       },
       {
         "key": "rur",
@@ -140,10 +150,11 @@
         "secure": true,
         "httpOnly": true,
         "hostOnly": false,
-        "creation": "2026-07-05T18:33:19.866Z",
-        "lastAccessed": "2026-07-05T18:33:19.866Z"
+        "creation": "2026-07-06T05:48:43.511Z",
+        "lastAccessed": "2026-07-06T05:48:43.511Z",
+        "sameSite": "lax"
       }
     ]
   },
-  "userAgent": "Instagram 350.0.0.0.0 Android (12/87993320; 480dpi; 1080x1920; Google; Pixel 4; flame; qcom; en_US; 489720525)"
+  "userAgent": "Instagram 350.0.0.0.0 Android (10/94971302; 480dpi; 1080x1920; Google; Pixel 4; flame; qcom; en_US; 489720525)"
 }
