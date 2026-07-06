@@ -149,6 +149,14 @@ The bot will:
 ---
 
 ## 🍪 account.txt — Cookie Setup
+### 🍪 Enhanced Cookie Login System
+The bot now supports an improved cookie-based login system for better stability:
+
+- **Dual Format Support:** Works with standard **Netscape HTTP Cookie File** format (from browser extensions) and **JSON-stringified** session objects.
+- **Auto-Persistence:** The bot automatically saves and updates the session state in `account.txt` after successful login, reducing the need for repeated manual cookie exports.
+- **Library Implementation:** Built on the `@neoaz07/nkxica` library, specifically designed for Instagram's MQTT and chat protocol.
+- **Smart Fallback:** Attempts to load existing sessions from `account.txt` first. If expired or missing, it will automatically attempt a fresh login using credentials from your configuration.
+
 
 This file holds your Instagram session cookies in **Netscape format**.  
 This is the same format used by browsers — no manual formatting needed if you use a cookie exporter extension.

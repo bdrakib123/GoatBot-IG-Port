@@ -2,10 +2,12 @@ const axios = require('axios');
 const fs = require('fs-extra');
 const path = require('path');
 
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
+
 module.exports = {
   config: {
     name: "say",
-    version: "1.7",
+    version: "1.8",
     author: "Samir Œ",
     cooldown: 5,
     role: 0,
@@ -41,42 +43,46 @@ module.exports = {
     await fs.ensureDir(path.dirname(tempPath));
 
     try {
-      if (text.length <= 150) {
-        const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&q=${encodeURIComponent(text)}`;
-        await message.reply({
-          body: text,
-          attachment: url
+      const chunkSize = 150;
+      const getChunks = (str, size) => {
+          const res = [];
+          for (let i = 0; i < str.length; i += size) {
+              res.push(str.substring(i, i + size));
+          }
+          return res;
+      };
+      const finalChunks = getChunks(text, chunkSize);
+
+      for (let i = 0; i < finalChunks.length; i++) {
+        const response = await axios({
+          method: "get",
+          url: `https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&q=${encodeURIComponent(finalChunks[i])}`,
+          responseType: "arraybuffer",
+          headers: {
+              "User-Agent": UA
+          }
         });
-      } else {
-        const chunkSize = 150;
-        const chunks = text.match(new RegExp(`.{1,${chunkSize}}`, 'g')) || [text];
-
-        for (let i = 0; i < chunks.length; i++) {
-          const response = await axios({
-            method: "get",
-            url: `https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&q=${encodeURIComponent(chunks[i])}`,
-            responseType: "arraybuffer"
-          });
-
-          await fs.appendFile(tempPath, Buffer.from(response.data));
-        }
-
-        await message.reply({
-          body: text,
-          attachment: fs.createReadStream(tempPath)
-        });
-
-        // Cleanup is handled by InstagramBot.js if we pass a stream,
-        // but it's safer to delete it here if we want to be sure since we created it.
-        // Actually InstagramBot.js: "for (const f of tempFiles) { fs.unlink(f).catch(() => {}); }"
-        // It adds to tempFiles if it creates a temp file from a stream.
-        // If I pass a ReadStream, it pipes it to a NEW temp file.
-        // So I should delete MY temp file after sending.
-        setTimeout(() => fs.remove(tempPath).catch(() => {}), 10000);
+        await fs.appendFile(tempPath, Buffer.from(response.data));
       }
+
+      // Check if file is empty
+      const stats = await fs.stat(tempPath);
+      if (stats.size === 0) {
+          throw new Error("Generated TTS file is empty");
+      }
+
+      await message.reply({
+        attachment: tempPath
+      });
+
+      // Cleanup - InstagramBot.js might also try to cleanup if we pass it as a path and it's in temp
+      // But we'll do it ourselves to be safe after a delay
+      setTimeout(() => fs.remove(tempPath).catch(() => {}), 60000);
+
     } catch (err) {
       console.error(err);
       message.reply("An error occurred during TTS conversion.");
+      if (fs.existsSync(tempPath)) fs.remove(tempPath).catch(() => {});
     }
   }
 };
