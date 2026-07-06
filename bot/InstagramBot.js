@@ -610,7 +610,7 @@ class InstagramBot {
                   }
                   // Handle Streams and Buffers
                   else if (item && (item.readable || item.pipe || Buffer.isBuffer(item))) {
-                      const ext = item.filename ? path.extname(item.filename) : (item.name ? path.extname(item.name) : '');
+                      const ext = item.filename ? path.extname(item.filename) : (item.name ? path.extname(item.name) : (item.path ? path.extname(item.path) : ''));
                       const tempPath = path.join(process.cwd(), 'temp', `media_${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`);
                       await fs.ensureDir(path.dirname(tempPath));
 
