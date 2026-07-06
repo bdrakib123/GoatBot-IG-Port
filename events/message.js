@@ -1,38 +1,74 @@
-'use strict';
-
+const config = require('../config');
+const logger = require('../utils/logger');
+const PermissionManager = require('../utils/permissions');
+const Banner = require('../utils/banner');
+const database = require('../utils/database');
 const moderation = require('../utils/moderation');
-const Banner     = require('../utils/banner');
+const ConfigManager = require('../utils/configManager');
 
 module.exports = {
-  config: {
-    name: 'message',
-    version: '1.2.3',
-    author: 'Gtajisan'
-  },
+  config: { name: 'message', description: 'Handle incoming messages' },
 
-  async run(bot, event) {
-    const api = bot.api;
-    const database = require('../utils/database');
-    const logger = require('../utils/logger');
-    const config = require('../config');
-    const commandLoader = bot.commandLoader;
-    const PermissionManager = require('../utils/permissions');
-    const ConfigManager = require('../utils/configManager');
-
+  async run(bot, data) {
     try {
-      if (config.LOG_EVENTS.message) {
-        logger.info(`Message from ${event.senderID} in ${event.threadID}: ${event.body || '[Media]'}`);
+      const { api, commandLoader } = bot;
+      const event = data;
+
+      if (event.senderID === bot.userID) return;
+      if (config.ANTI_INBOX && !event.isGroup) return;
+
+      if (!config.LOG_EVENTS.disableAll && config.LOG_EVENTS.message) {
+        Banner.messageReceived(event.senderID, event.body || '');
+        logger.info(`Message from ${event.senderID} in ${event.threadId}: ${event.body || '(no text)'}`);
       }
 
-      logger.debug('[MessageEvent] Processing event', { sender: event.senderID, thread: event.threadID, body: event.body });
+      const user = database.getUser(event.senderID);
+      user.messageCount = (user.messageCount || 0) + 1;
+      database.updateUser(event.senderID, user);
 
-      const threadData = database.getThreadData(event.threadId);
-      const prefix = threadData?.prefix || config.PREFIX;
+      // onFirstChat support
+      if (!global.client) global.client = {};
+      if (!global.client.onFirstChat) global.client.onFirstChat = new Set();
+      if (!global.client.onFirstChat.has(event.threadId)) {
+          global.client.onFirstChat.add(event.threadId);
+          for (const [name, cmd] of bot.commandLoader.commands) {
+              if (typeof cmd.onFirstChat === 'function') {
+                  cmd.onFirstChat({
+                      api, event, bot, database, usersData: database.usersData, threadsData: database.threadsData
+                  }).catch(e => logger.error(`onFirstChat error in ${name}`, { error: e.message }));
+              }
+          }
+      }
+
+      // onChat support
+      for (const [name, cmd] of bot.commandLoader.commands) {
+          if (typeof cmd.onChat === 'function') {
+              cmd.onChat({
+                  api,
+                  event,
+                  bot,
+                  database,
+                  usersData: database.usersData,
+                  threadsData: database.threadsData,
+                  getLang: (...args) => require('../utils.js').getText(cmd.config.name, ...args)
+              }).catch(e => logger.error(`onChat error in ${name}`, { error: e.message }));
+          }
+      }
+
+      const modResult = await moderation.moderateMessage(event.senderID, event.threadId, event.body);
+      if (!modResult.allowed) {
+        if (modResult.message) await api.sendMessage(modResult.message, event.threadId);
+        return;
+      }
+
+      if (!event.body || typeof event.body !== 'string') return;
+
+      const autoResponse = database.findAutoResponse(event.body);
+      if (autoResponse) { await api.sendMessage(autoResponse.response, event.threadId); return; }
 
       // Handle onReply
-      if (event.messageReply) {
-          const replyToItemId = event.messageReply.messageID;
-          const replyData = database.getReplyData(replyToItemId) || global.GoatBot.onReply.get(String(replyToItemId));
+      if (event.replyToItemId) {
+          const replyData = database.getReplyData(event.replyToItemId) || global.GoatBot.onReply.get(String(event.replyToItemId));
           if (replyData && replyData.commandName) {
               const command = commandLoader.getCommand(replyData.commandName);
               if (command) {
@@ -40,13 +76,7 @@ module.exports = {
                       api, event, bot, commandName: replyData.commandName,
                       logger, database, usersData: database.usersData,
                       threadsData: database.threadsData,
-                      Reply: replyData, replyData,
-                      message: {
-                          reply: (form, callback) => api.sendMessage(form, event.threadId, callback, event.messageID),
-                          send: (form, callback) => api.sendMessage(form, event.threadId, callback),
-                          reaction: (emoji, messageID, callback) => api.setMessageReaction(emoji, messageID || event.messageID, callback),
-                          unsend: (messageID, callback) => api.unsendMessage(messageID || event.messageID, callback)
-                      }
+                      Reply: replyData, replyData
                   };
                   if (typeof command.onReply === 'function') return await command.onReply(replyParams);
                   if (typeof command.handleReply === 'function') return await command.handleReply(replyParams);
@@ -54,25 +84,21 @@ module.exports = {
           }
       }
 
-      if (!event.body && (!event.attachments || event.attachments.length === 0)) {
-          logger.debug('[MessageEvent] Empty body and no attachments');
-          return;
-      }
-      const bodyLower = (event.body || '').toLowerCase().trim();
+      const threadData = database.getThreadData(event.threadId);
+      const prefix = threadData?.prefix || config.PREFIX;
+
+      const bodyLower = event.body.toLowerCase().trim();
       if (bodyLower === 'prefix') {
         await api.sendMessage(`🌐 Global prefix: ${config.PREFIX}\n🛸 Thread prefix: ${prefix}`, event.threadId);
         return;
       }
 
-      const startsWithPrefix = event.body?.startsWith(prefix);
+      const startsWithPrefix = event.body.startsWith(prefix);
       const noPrefixAllowed  = config.NO_PREFIX && PermissionManager.canUseNoPrefix(event.senderID);
 
-      if (!startsWithPrefix && !noPrefixAllowed) {
-          logger.debug('[MessageEvent] Not a command', { startsWithPrefix, noPrefixAllowed });
-          return;
-      }
+      if (!startsWithPrefix && !noPrefixAllowed) return;
 
-      let rawBody = event.body || '';
+      let rawBody = event.body;
       if (startsWithPrefix) rawBody = event.body.slice(prefix.length);
       const args = rawBody.trim().split(/ +/);
       const commandName = args.shift().toLowerCase();
@@ -82,11 +108,21 @@ module.exports = {
         return;
       }
 
+
       const command = commandLoader.getCommand(commandName);
 
       if (!command) {
-        logger.debug('[MessageEvent] Command not found', { commandName });
+          // Check for aliases
+          for (const [name, cmd] of commandLoader.commands) {
+              if (cmd.config.aliases && cmd.config.aliases.includes(commandName)) {
+                  const aliasedCommand = cmd;
+                  // Found alias, continue execution with aliasedCommand
+                  return await this.executeCommand(aliasedCommand, { api, event, args, bot, commandName: aliasedCommand.config.name, logger, database, config, PermissionManager, ConfigManager, prefix });
+              }
+          }
+
         if (startsWithPrefix && !config.HIDE_NOTI.commandNotFound) {
+          // AI Fallback logic
           if (config.AI_FALLBACK?.enable) {
             const aiCommandName = config.AI_FALLBACK.command || 'gpt';
             const aiCommand = commandLoader.getCommand(aiCommandName);
@@ -109,7 +145,7 @@ module.exports = {
         return;
       }
 
-      await this.executeCommand(command, { api, event, args, bot, commandName: command.config.name, logger, database, config, PermissionManager, ConfigManager, prefix });
+      await this.executeCommand(command, { api, event, args, bot, commandName, logger, database, config, PermissionManager, ConfigManager, prefix });
     } catch (e) {
       logger.error('Error in message event handler', { error: e.message, stack: e.stack });
     }
@@ -129,16 +165,6 @@ module.exports = {
                           }
                       }
                       return sent;
-                  };
-              }
-              if (prop === 'unsendMessage') {
-                  return async (messageID, callback) => {
-                      return await target.unsendMessage(event.threadId, messageID, callback);
-                  };
-              }
-              if (prop === 'setMessageReaction') {
-                  return async (emoji, messageID, callback) => {
-                      return await target.sendReaction(event.threadId, messageID || event.messageID, emoji);
                   };
               }
               return target[prop];
@@ -170,7 +196,7 @@ module.exports = {
 
       const requiredRole = command.config.role || 0;
       let threadInfo = null;
-      if (requiredRole === 1) threadInfo = await bot.api.getThreadInfo(event.threadId).catch(() => null);
+      if (requiredRole === 1) threadInfo = await bot.getThreadInfo(event.threadId).catch(() => null);
       const hasPermission = await PermissionManager.hasPermission(event.senderID, requiredRole, threadInfo);
       if (!hasPermission) {
           if (!config.HIDE_NOTI.needRoleToUseCmd) {
@@ -184,6 +210,8 @@ module.exports = {
           user.commandCount = (user.commandCount || 0) + 1;
           database.updateUser(event.senderID, user);
           database.incrementStat('totalCommands');
+
+
 
           const getLang = (...args) => require('../utils.js').getText(command.config.name, ...args);
           const commandParams = {
@@ -203,8 +231,8 @@ module.exports = {
               message: {
                   reply: (form, callback) => replyApi.sendMessage(form, event.threadId, callback, event.messageID),
                   send: (form, callback) => replyApi.sendMessage(form, event.threadId, callback),
-                  reaction: (emoji, messageID, callback) => replyApi.setMessageReaction(emoji, messageID || event.messageID, callback),
-                  unsend: (messageID, callback) => replyApi.unsendMessage(messageID || event.messageID, callback),
+                  reaction: (emoji, messageID, callback) => api.setMessageReaction(emoji, messageID || event.messageID, callback),
+                  unsend: (messageID, callback) => api.unsendMessage(messageID || event.messageID, callback),
                   err: async (err) => {
                       const msg = typeof err === 'object' ? err.message || JSON.stringify(err) : String(err);
                       return await replyApi.sendMessage(`❌ Error: ${msg}`, event.threadId);
@@ -216,7 +244,6 @@ module.exports = {
           };
 
           logger.info(`Executing command: ${command.config.name} for ${event.senderID}`);
-          bot.logActivity(`Command ${command.config.name} executed by ${event.senderID}`);
           if (typeof command.onStart === 'function') {
               await command.onStart(commandParams);
           } else if (typeof command.run === 'function') {

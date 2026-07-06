@@ -35,14 +35,27 @@ class CommandLoader {
         const cmd = require(fp);
         if (!cmd.config || !cmd.config.name) { logger.warn(`Command ${file} missing config.name, skipping`); continue; }
 
-        const name = cmd.config.name.toLowerCase();
-        this.commands.set(name, cmd);
+        this.commands.set(cmd.config.name.toLowerCase(), cmd);
         if (cmd.config.aliases) {
             cmd.config.aliases.forEach(a => {
-                const alias = a.toLowerCase();
-                this.aliases.set(alias, name);
-                this.commands.set(alias, cmd);
+                this.aliases.set(a.toLowerCase(), cmd.config.name.toLowerCase());
+                this.commands.set(a.toLowerCase(), cmd);
             });
+        }
+
+        // Support onLoad for GoatBot V2 commands
+        if (typeof cmd.onLoad === 'function') {
+            try {
+                cmd.onLoad({
+                    api: global.GoatBot.fcaApi,
+                    bot: global.GoatBot.instance, // Will be set later
+                    database: require('./database'),
+                    usersData: require('./database').usersData,
+                    threadsData: require('./database').threadsData
+                });
+            } catch (e) {
+                logger.error(`Error in onLoad of ${cmd.config.name}`, { error: e.message });
+            }
         }
 
         logger.info(`Loaded: ${cmd.config.name}`);
