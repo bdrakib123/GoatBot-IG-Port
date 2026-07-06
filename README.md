@@ -241,6 +241,18 @@ The bot automatically validates `account.txt` on startup:
 
 ---
 
+
+### ⚙️ Technical Environment
+- **Node.js:** Requires version **18 or higher**.
+- **Protocol:** Uses the **Instagram MQTT (ICA)** protocol for real-time messaging.
+- **Engine:** Powered by the GoatBot V2 architecture ported to Instagram.
+- **Library:** Deep integration with `@neoaz07/nkxica` for core API interactions.
+
+### ❓ Troubleshooting TTS (say command)
+If the `say` command fails:
+1. Ensure your bot server has internet access to Google's translation services.
+2. Check if the `temp` or system temporary directory is writable.
+3. If using on Render/Replit, ensures dependencies are correctly installed.
 ## ⚙️ Configuration
 
 Edit **`config/default.json`**:
