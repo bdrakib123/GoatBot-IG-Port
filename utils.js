@@ -214,7 +214,7 @@ function getExtFromAttachmentType(type) {
 }
 
 function getExtFromMimeType(mimeType = "") {
-	return mimeDB[mimeType] ? (mimeDB[mimeType].extensions || [])[0] || "unknow" : "unknow";
+	return mimeDB[mimeType] ? (mimeDB[mimeType].extensions || [])[0] || "unknown" : "unknown";
 }
 
 function getExtFromUrl(url = "") {
@@ -222,7 +222,7 @@ function getExtFromUrl(url = "") {
 		throw new Error('The first argument (url) must be a string');
 	const reg = /(?<=https:\/\/cdn.fbsbx.com\/v\/.*?\/|https:\/\/video.xx.fbcdn.net\/v\/.*?\/|https:\/\/scontent.xx.fbcdn.net\/v\/.*?\/).*?(\/|\?)/g;
 	const match = url.match(reg);
-    if (!match) return "unknow";
+    if (!match) return "unknown";
 	const fileName = match[0].slice(0, -1);
 	return fileName.slice(fileName.lastIndexOf(".") + 1);
 }
@@ -527,6 +527,10 @@ async function getStreamFromURL(url = "", pathName = "", options = {}) {
 	try {
 		if (!url || typeof url !== "string")
 			throw new Error(`The first argument (url) must be a string`);
+		if (!options.headers) options.headers = {};
+		if (!options.headers["User-Agent"] && !options.headers["user-agent"]) {
+			options.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
+		}
 		const response = await axios({
 			url,
 			method: "GET",
