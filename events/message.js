@@ -24,7 +24,24 @@ module.exports = {
 
       const user = database.getUser(event.senderID);
       user.messageCount = (user.messageCount || 0) + 1;
-      database.updateUser(event.senderID, user);
+
+      if (!user.name || !user.username) {
+        // Asynchronously fetch info and save to DB
+        api.getUserInfo(event.senderID).then(infoMap => {
+          const info = infoMap[event.senderID];
+          if (info) {
+            user.name = info.fullName || info.full_name || info.name || '';
+            user.username = info.username || '';
+            user.avatarUrl = info.profilePicUrlHd || info.profile_pic_url_hd || info.profilePicUrl || '';
+            database.updateUser(event.senderID, user);
+            database.save();
+          }
+        }).catch(() => {
+          database.updateUser(event.senderID, user);
+        });
+      } else {
+        database.updateUser(event.senderID, user);
+      }
 
       // onFirstChat support
       if (!global.client) global.client = {};
