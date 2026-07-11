@@ -1,18 +1,37 @@
 {
   "users": {
+    "999999999": {
+      "id": "999999999",
+      "userID": "999999999",
+      "firstSeen": 1783765820295,
+      "lastSeen": 1783765820295,
+      "messageCount": 0,
+      "commandCount": 0,
+      "exp": 0,
+      "level": 1,
+      "money": 0,
+      "banned": false,
+      "data": {},
+      "name": "New Person",
+      "username": "new_person"
+    },
     "31084232782": {
       "id": "31084232782",
       "firstSeen": 1782400283830,
-      "lastSeen": 1782675399762,
+      "lastSeen": 1783765820294,
       "messageCount": 13,
-      "commandCount": 0
+      "commandCount": 0,
+      "name": "John Doe",
+      "username": "johndoe"
     },
     "55163920901": {
       "id": "55163920901",
       "firstSeen": 1782653741078,
-      "lastSeen": 1782653741078,
+      "lastSeen": 1783765820294,
       "messageCount": 1,
-      "commandCount": 0
+      "commandCount": 0,
+      "name": "Jane Smith",
+      "username": "janesmith"
     },
     "79649846813": {
       "id": "79649846813",

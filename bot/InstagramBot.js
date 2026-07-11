@@ -95,13 +95,47 @@ class InstagramBot {
       if (route === '/threads') {
         try {
           const inbox = await this.ig.getInbox({ limit: 40 });
-          const threads = (inbox?.threads || inbox?.items || []).map(t => ({
-            threadID:        t.thread_id || t.threadID || t.id,
-            name:            t.thread_title || t.name || t.title || '',
-            isGroup:         t.is_group || t.isGroup || false,
-            participantCount: (t.users||t.participants||[]).length,
-            snippet:         t.last_permanent_item?.text || t.snippet || ''
-          }));
+          const threads = (inbox?.threads || inbox?.items || []).map(t => {
+            let name = t.thread_title || t.name || t.title || '';
+            const isGroup = t.is_group || t.isGroup || false;
+            const participants = t.users || t.participants || [];
+
+            if (!name && !isGroup && participants.length > 0) {
+              const otherUser = participants.find(u => String(u.pk || u.id || u.userID) !== String(this.userID)) || participants[0];
+              if (otherUser) {
+                name = otherUser.fullName || otherUser.full_name || otherUser.username || `User ${otherUser.pk || otherUser.id}`;
+              }
+            }
+            if (!name) name = isGroup ? 'Unnamed Group' : 'Direct Message';
+
+            // Cache participant details
+            const database = require('../utils/database');
+            participants.forEach(u => {
+              const userId = u.pk || u.id || u.userID;
+              if (userId) {
+                const user = database.getUser(userId);
+                let updated = false;
+                const pName = u.fullName || u.full_name || u.name;
+                const pUser = u.username;
+                const pAvatar = u.profilePicUrlHd || u.profile_pic_url_hd || u.profilePicUrl;
+                if (!user.name && pName) { user.name = pName; updated = true; }
+                if (!user.username && pUser) { user.username = pUser; updated = true; }
+                if (!user.avatarUrl && pAvatar) { user.avatarUrl = pAvatar; updated = true; }
+                if (updated) {
+                  database.updateUser(userId, user);
+                }
+              }
+            });
+
+            return {
+              threadID:        t.thread_id || t.threadID || t.id,
+              name:            name,
+              isGroup:         isGroup,
+              participantCount: participants.length,
+              snippet:         t.last_permanent_item?.text || t.snippet || ''
+            };
+          });
+          require('../utils/database').save();
           return json({ threads });
         } catch (e) {
           return json({ threads: [], error: e.message });
@@ -122,6 +156,24 @@ class InstagramBot {
             isAdmin:  u.is_admin || u.isAdmin || false,
             nickname: u.nickname || ''
           }));
+
+          // Asynchronously update database with these participants
+          const database = require('../utils/database');
+          let anyUpdated = false;
+          participants.forEach(p => {
+            const user = database.getUser(p.userID);
+            let updated = false;
+            if (!user.name && p.name) { user.name = p.name; updated = true; }
+            if (!user.username && p.username) { user.username = p.username; updated = true; }
+            if (updated) {
+              database.updateUser(p.userID, user);
+              anyUpdated = true;
+            }
+          });
+          if (anyUpdated) {
+            database.save();
+          }
+
           return json({ threadID, participants, raw: { name: raw.thread_title || '', isGroup: raw.is_group } });
         } catch (e) {
           return json({ threadID, participants: [], error: e.message });
@@ -132,6 +184,30 @@ class InstagramBot {
       if (route === '/users') {
         const database = require('../utils/database');
         const users  = database.getAllUsers().sort((a, b) => (b.messageCount||0) - (a.messageCount||0));
+
+        // Resolve names for any user that doesn't have them, up to 10 users at a time to prevent rate limits
+        const unresolved = users.filter(u => !u.name || !u.username).slice(0, 10);
+        if (unresolved.length > 0) {
+          let anyUpdated = false;
+          await Promise.all(unresolved.map(async (u) => {
+            try {
+              const info = await this.ig.getUserInfo(u.id);
+              if (info) {
+                u.name = info.fullName || info.full_name || info.name || '';
+                u.username = info.username || '';
+                u.avatarUrl = info.profilePicUrlHd || info.profile_pic_url_hd || info.profilePicUrl || '';
+                database.updateUser(u.id, u);
+                anyUpdated = true;
+              }
+            } catch (err) {
+              // Ignore error
+            }
+          }));
+          if (anyUpdated) {
+            database.save();
+          }
+        }
+
         const economy = database.data.economy || {};
         const banned  = [...(database.data.bannedUsers || [])];
         return json({ users, economy, banned });
