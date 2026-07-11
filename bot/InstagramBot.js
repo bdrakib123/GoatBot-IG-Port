@@ -498,8 +498,38 @@ class InstagramBot {
       database.markMessageAsProcessed(msgKey);
 
       if (this._logActivity && event.body) {
+        const u = database.getUser(senderID);
+        const thread = database.getThreadData(threadID);
+        const isGroup = event.isGroup || false;
+
+        // Asynchronously resolve user profile details if missing
+        if (!u.name || !u.username) {
+          this.ig.getUserInfo(senderID).then(info => {
+            if (info) {
+              u.name = info.fullName || info.full_name || info.name || '';
+              u.username = info.username || '';
+              u.avatarUrl = info.profilePicUrlHd || info.profile_pic_url_hd || info.profilePicUrl || '';
+              database.updateUser(senderID, u);
+              database.save();
+            }
+          }).catch(() => {});
+        }
+
+        // Asynchronously resolve group name if missing and is a group
+        if (isGroup && (!thread.name || thread.name === 'Group Chat')) {
+          this.ig.getThreadInfo(threadID).then(info => {
+            if (info && info.thread_title) {
+              thread.name = info.thread_title;
+              database.setThreadData(threadID, thread);
+              database.save();
+            }
+          }).catch(() => {});
+        }
+
+        const userName = u && (u.name || u.username) ? `${u.name} (@${u.username})` : senderID;
+        const threadName = thread && thread.name ? thread.name : (isGroup ? 'Group Chat' : 'Direct Message');
         const preview = event.body.slice(0, 60) + (event.body.length > 60 ? '...' : '');
-        this._logActivity(`Message from ${senderID} in ${threadID}: "${preview}"`);
+        this._logActivity(`Message from ${userName} in ${threadName}: "${preview}"`);
       }
 
       const normalizedEvent = {

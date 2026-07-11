@@ -261,6 +261,11 @@ module.exports = {
           };
 
           logger.info(`Executing command: ${command.config.name} for ${event.senderID}`);
+          if (bot._logActivity) {
+              const u = database.getUser(event.senderID);
+              const userName = u && (u.name || u.username) ? `${u.name} (@${u.username})` : event.senderID;
+              bot._logActivity(`Command executed: "${prefix || '!'}${command.config.name}" by ${userName}`);
+          }
           if (typeof command.onStart === 'function') {
               await command.onStart(commandParams);
           } else if (typeof command.run === 'function') {
