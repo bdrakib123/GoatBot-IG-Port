@@ -43,9 +43,11 @@
     "49212864825": {
       "id": "49212864825",
       "firstSeen": 1782668634547,
-      "lastSeen": 1782675399781,
+      "lastSeen": 1783769396310,
       "messageCount": 14,
-      "commandCount": 0
+      "commandCount": 0,
+      "name": "Jisan Chowdhury",
+      "username": "jisan_chowdhury"
     },
     "62808187499": {
       "id": "62808187499",
@@ -156,7 +158,8 @@
       "id": "340282366841710301281153023335675382642",
       "prefix": null,
       "settings": {},
-      "createdAt": 1782668634548
+      "createdAt": 1782668634548,
+      "name": "Jisan Dev Group"
     },
     "340282366841710301281152781987959959877": {
       "id": "340282366841710301281152781987959959877",

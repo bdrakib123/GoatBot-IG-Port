@@ -498,8 +498,12 @@ class InstagramBot {
       database.markMessageAsProcessed(msgKey);
 
       if (this._logActivity && event.body) {
+        const u = database.getUser(senderID);
+        const userName = u && (u.name || u.username) ? `${u.name} (@${u.username})` : senderID;
+        const thread = database.getThreadData(threadID);
+        const threadName = thread && thread.name ? thread.name : (event.isGroup ? 'Group Chat' : 'Direct Message');
         const preview = event.body.slice(0, 60) + (event.body.length > 60 ? '...' : '');
-        this._logActivity(`Message from ${senderID} in ${threadID}: "${preview}"`);
+        this._logActivity(`Message from ${userName} in ${threadName}: "${preview}"`);
       }
 
       const normalizedEvent = {
