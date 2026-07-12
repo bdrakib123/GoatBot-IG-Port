@@ -457,6 +457,17 @@
 
 <!-- OVERVIEW PAGE -->
 <div class="page active" id="page-overview">
+  <!-- Connection Alert Banner -->
+  <div id="error-alert-box" style="display:none;margin-bottom:20px;padding:16px;background:rgba(255,95,86,0.1);border:1px solid var(--red);border-radius:12px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 8px 32px 0 rgba(255,95,86,0.15)">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-size:24px">⚠️</span>
+      <div style="flex:1">
+        <h4 style="color:var(--red);font-size:0.95rem;font-weight:700;margin-bottom:4px" id="error-alert-title">Connection Error</h4>
+        <p style="font-size:0.82rem;color:var(--text);opacity:0.9;line-height:1.4" id="error-alert-message">Session expired or invalid.</p>
+      </div>
+    </div>
+  </div>
+
   <div class="grid4">
     <div class="card">
       <div class="mac-dots"><span class="mac-dot red"></span><span class="mac-dot yellow"></span><span class="mac-dot green"></span></div>
@@ -700,14 +711,64 @@ function avatarInitial(name){return String(name || '?').charAt(0).toUpperCase();
 async function loadOverview(){
   const d=await api('/status');
   if(!d) return;
-  document.getElementById('status-dot').style.background=d.connected?'var(--green)':'var(--red)';
-  document.getElementById('status-text').textContent=d.connected?'Online':'Offline';
-  if (!d.connected) {
-    document.getElementById('recent-activity').innerHTML += '<div style="padding:8px;background:rgba(255,95,86,0.1);border:1px solid var(--red);border-radius:6px;margin-top:10px;font-size:0.8rem;color:var(--red)"><strong>Cookie Error:</strong> Session validation failed. Please check your account.txt and ensure cookies are fresh.</div>';
+
+  // Set header status dot and text
+  let headerDotColor = 'var(--red)';
+  let headerStatusText = 'Offline';
+  if (d.status === 'online') {
+    headerDotColor = 'var(--green)';
+    headerStatusText = 'Online';
+  } else if (d.status === 'reconnecting') {
+    headerDotColor = 'var(--yellow)';
+    headerStatusText = 'Reconnecting...';
+  } else if (d.status === 'auth_error') {
+    headerDotColor = 'var(--red)';
+    headerStatusText = 'Auth Error';
   }
+  document.getElementById('status-dot').style.background = headerDotColor;
+  document.getElementById('status-text').textContent = headerStatusText;
+
+  // Handle the premium error banner
+  const errBox = document.getElementById('error-alert-box');
+  const errTitle = document.getElementById('error-alert-title');
+  const errMsg = document.getElementById('error-alert-message');
+
+  if (d.status === 'auth_error' || d.status === 'reconnecting' || !d.connected) {
+    if (errBox) {
+      errBox.style.display = 'block';
+      if (d.status === 'auth_error') {
+        errTitle.textContent = '⚠️ Authentication Error / Logged Out';
+        errMsg.innerHTML = `The bot was logged out or session validation failed.<br><strong style="color:var(--yellow)">Reason:</strong> ${d.errorReason || 'Session expired.'}<br><br><span>Please check <code>account.txt</code> and ensure cookies are fresh, or check your login credentials in <code>config/default.json</code>.</span>`;
+      } else if (d.status === 'reconnecting') {
+        errTitle.textContent = '↻ Bot Reconnecting...';
+        errMsg.innerHTML = `The bot lost connection to Instagram and is currently trying to reconnect.<br><strong style="color:var(--yellow)">Last Error:</strong> ${d.errorReason || 'Disconnected.'}`;
+      } else {
+        errTitle.textContent = '✕ Bot Offline';
+        errMsg.innerHTML = `The bot is currently offline.<br><strong style="color:var(--yellow)">Reason:</strong> ${d.errorReason || 'Stopped.'}`;
+      }
+    }
+  } else {
+    if (errBox) errBox.style.display = 'none';
+  }
+
   document.getElementById('bot-username').textContent='@'+(d.username||d.userID||'—');
   document.getElementById('last-updated').textContent='Updated '+new Date().toLocaleTimeString();
-  document.getElementById('ov-status').innerHTML=`<span class="badge badge-${d.connected?'green':'red'}">${d.connected?'● Online':'✕ Offline'}</span>`;
+
+  // Set Overview Status Badge
+  let badgeClass = 'red';
+  let badgeText = '✕ Offline';
+  if (d.status === 'online') {
+    badgeClass = 'green';
+    badgeText = '● Online';
+  } else if (d.status === 'reconnecting') {
+    badgeClass = 'yellow';
+    badgeText = '↻ Reconnecting';
+  } else if (d.status === 'auth_error') {
+    badgeClass = 'red';
+    badgeText = '⚠ Auth Error';
+  }
+  document.getElementById('ov-status').innerHTML=`<span class="badge badge-${badgeClass}">${badgeText}</span>`;
+
   document.getElementById('ov-uptime').textContent='Uptime: '+fmtUptime(d.uptime);
   document.getElementById('ov-cmds').textContent=(d.stats?.totalCommands||0).toLocaleString();
   document.getElementById('ov-users').textContent=(d.totalUsers||0).toLocaleString();
