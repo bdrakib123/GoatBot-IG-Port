@@ -24,10 +24,13 @@ class InstagramBot {
     this.reconnectAttempts = 0;
     this.shouldReconnect   = config.AUTO_RECONNECT;
     this.isRunning         = false;
+    this.connectionStatus  = 'offline'; // 'offline', 'online', 'reconnecting', 'auth_error'
+    this.lastErrorReason   = null;
     this._mqttRestartTimer  = null;
     this._cookieRefreshTimer = null;
     this._reminderTimer     = null;
     this._autoRemoveTimer   = null;
+    this._sessionCheckerTimer = null;
   }
 
   startHealthServer() {
@@ -73,6 +76,8 @@ class InstagramBot {
         const users = database.getAllUsers();
         return json({
           connected:    this.isRunning,
+          status:       this.connectionStatus,
+          errorReason:  this.lastErrorReason,
           userID:       this.userID,
           username:     this.username,
           botName:      config.BOT_NAME || config.NICK_NAME_BOT || 'GoatBot-IG',
@@ -301,6 +306,9 @@ class InstagramBot {
       this._scheduleAutoUptime();
     } catch (error) {
       logger.error('Failed to start bot', { error: error.message, stack: error.stack });
+      this.isRunning = false;
+      this.connectionStatus = 'offline';
+      this.lastErrorReason = error.message;
       await this.eventLoader.handleEvent('error', error);
       if (this.shouldReconnect && this.reconnectAttempts < config.MAX_RECONNECT_ATTEMPTS) {
         this.scheduleReconnect();
@@ -416,6 +424,8 @@ class InstagramBot {
 
     this.reconnectAttempts = 0;
     this.isRunning         = true;
+    this.connectionStatus  = 'online';
+    this.lastErrorReason   = null;
     logger.info('Connected to Instagram', { userID: this.userID });
     this.saveSession();
 
@@ -423,6 +433,7 @@ class InstagramBot {
       this.startListening();
       this._startReminderScheduler();
       this._startAutoRemoveScheduler();
+      this._startSessionChecker();
     });
   }
 
@@ -434,15 +445,22 @@ class InstagramBot {
         const msg = err.message || String(err);
         logger.error('Listen error', { error: msg });
 
-        const isAuthError = /not authorized|login_required|unauthorized/i.test(msg);
+        this.isRunning = false;
+        this.lastErrorReason = msg;
+
+        const isAuthError = /not authorized|login_required|unauthorized|checkpoint/i.test(msg);
         if (isAuthError) {
+          this.connectionStatus = 'auth_error';
           logger.error('Session expired or invalid. Update account.txt or credentials in config.');
           this._sendMqttErrorNotification(msg);
           if (config.AUTO_RESTART_WHEN_MQTT_ERROR) {
             this.scheduleReconnect();
           }
-        } else if (this.shouldReconnect) {
-          this.scheduleReconnect();
+        } else {
+          this.connectionStatus = 'offline';
+          if (this.shouldReconnect) {
+            this.scheduleReconnect();
+          }
         }
         return;
       }
@@ -773,8 +791,11 @@ class InstagramBot {
           return result;
         } catch (error) {
           logger.error('Failed to send message', { error: error.message, threadID });
-          if (/login_required|not authorized|unauthorized/i.test(error.message)) {
+          if (/login_required|not authorized|unauthorized|checkpoint/i.test(error.message)) {
             logger.warn('Auth error detected during sendMessage, triggering reconnection...');
+            this.connectionStatus = 'auth_error';
+            this.lastErrorReason = error.message;
+            this.isRunning = false;
             this.scheduleReconnect();
           }
           if (typeof callback === 'function') callback(error);
@@ -842,8 +863,11 @@ class InstagramBot {
           return await ig.sendPhoto(threadID, photoPath, {});
         } catch (error) {
           logger.error('Failed to send photo', { error: error.message, threadID });
-          if (/login_required|not authorized|unauthorized/i.test(error.message)) {
+          if (/login_required|not authorized|unauthorized|checkpoint/i.test(error.message)) {
             logger.warn('Auth error detected during sendPhoto, triggering reconnection...');
+            this.connectionStatus = 'auth_error';
+            this.lastErrorReason = error.message;
+            this.isRunning = false;
             this.scheduleReconnect();
           }
           throw error;
@@ -860,8 +884,11 @@ class InstagramBot {
           return await ig.sendVideo(threadID, videoPath, {});
         } catch (error) {
           logger.error('Failed to send video', { error: error.message, threadID });
-          if (/login_required|not authorized|unauthorized/i.test(error.message)) {
+          if (/login_required|not authorized|unauthorized|checkpoint/i.test(error.message)) {
             logger.warn('Auth error detected during sendVideo, triggering reconnection...');
+            this.connectionStatus = 'auth_error';
+            this.lastErrorReason = error.message;
+            this.isRunning = false;
             this.scheduleReconnect();
           }
           throw error;
@@ -878,8 +905,11 @@ class InstagramBot {
           return await ig.sendVoice(threadID, audioPath, {});
         } catch (error) {
           logger.error('Failed to send audio', { error: error.message, threadID });
-          if (/login_required|not authorized|unauthorized/i.test(error.message)) {
+          if (/login_required|not authorized|unauthorized|checkpoint/i.test(error.message)) {
             logger.warn('Auth error detected during sendAudio, triggering reconnection...');
+            this.connectionStatus = 'auth_error';
+            this.lastErrorReason = error.message;
+            this.isRunning = false;
             this.scheduleReconnect();
           }
           throw error;
@@ -1096,6 +1126,31 @@ class InstagramBot {
     };
   }
 
+  _startSessionChecker() {
+    if (this._sessionCheckerTimer) clearInterval(this._sessionCheckerTimer);
+    // Check every 3 minutes
+    this._sessionCheckerTimer = setInterval(async () => {
+      if (!this.isRunning || !this.ig) return;
+      try {
+        await this.ig.getInbox({ limit: 1 });
+      } catch (err) {
+        const msg = err.message || String(err);
+        const isAuthError = /not authorized|login_required|unauthorized|checkpoint/i.test(msg);
+        if (isAuthError) {
+          logger.error('Session checker detected expired/invalid session', { error: msg });
+          this.isRunning = false;
+          this.connectionStatus = 'auth_error';
+          this.lastErrorReason = msg;
+          this._sendMqttErrorNotification(msg);
+          if (config.AUTO_RESTART_WHEN_MQTT_ERROR) {
+            this.scheduleReconnect();
+          }
+        }
+      }
+    }, 180000); // 3 minutes
+    logger.info('Session checker started (checks every 3m)');
+  }
+
   _startReminderScheduler() {
     if (this._reminderTimer) clearInterval(this._reminderTimer);
     this._reminderTimer = setInterval(async () => {
@@ -1215,15 +1270,21 @@ class InstagramBot {
   }
 
   scheduleReconnect() {
+    this.connectionStatus  = 'reconnecting';
+    this.isRunning         = false;
     this.reconnectAttempts++;
     if (this.reconnectAttempts >= config.MAX_RECONNECT_ATTEMPTS) {
       logger.error('Max reconnection attempts reached. Stopping bot.');
+      this.connectionStatus = 'offline';
+      this.lastErrorReason = 'Max reconnection attempts reached';
       process.exit(1);
     }
     logger.info(`Reconnecting in 5s (attempt ${this.reconnectAttempts}/${config.MAX_RECONNECT_ATTEMPTS})...`);
     setTimeout(() => {
       this.loadAndLogin().catch(err => {
         logger.error('Reconnection failed', { error: err.message });
+        this.connectionStatus = 'offline';
+        this.lastErrorReason = err.message;
         this.scheduleReconnect();
       });
     }, 5000);
@@ -1237,11 +1298,13 @@ class InstagramBot {
     const shutdown = (signal) => {
       logger.info(`Received ${signal}, shutting down...`);
       this.isRunning       = false;
+      this.connectionStatus  = 'offline';
       this.shouldReconnect = false;
       if (this._mqttRestartTimer)   clearInterval(this._mqttRestartTimer);
       if (this._cookieRefreshTimer) clearInterval(this._cookieRefreshTimer);
       if (this._reminderTimer)      clearInterval(this._reminderTimer);
       if (this._autoRemoveTimer)    clearInterval(this._autoRemoveTimer);
+      if (this._sessionCheckerTimer) clearInterval(this._sessionCheckerTimer);
       try { if (this.ig) this.ig.stopListening(); } catch (_) {}
       logger.info('Bot shutdown complete');
       process.exit(0);
