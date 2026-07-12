@@ -1,22 +1,36 @@
 const axios = require('axios');
 
-const BASE_URL = 'https://noobs-api.top/dipto/baby';
+const BASE_URL = 'https://simsimi.cyberbot.top';
 
 module.exports = {
   config: {
     name: 'bby',
     aliases: ['baby', 'bbe', 'babe'],
     description: 'Chat with Baby AI — teach it, manage replies, and more',
-    usage: 'bby <message> | teach <msg> - <reply> | remove <msg> | list | msg <msg>',
+    usage: 'bby <message> | teach <msg> - <reply> | remove <msg> - <reply> | list',
     cooldown: 3,
     role: 0,
     category: 'ai'
   },
 
-  async onStart({ api, event, args, logger, database }) {
+  async onStart({ api, event, args, logger, database, usersData }) {
+    const uid = event.senderID;
+    const threadID = event.threadId || event.threadID;
+
+    // Get user name for SimSimi personalization
+    let senderName = 'Jisan';
+    try {
+      const user = database.getUser(uid);
+      if (user && user.name) {
+        senderName = user.name;
+      } else if (usersData && typeof usersData.getName === 'function') {
+        senderName = await usersData.getName(uid);
+      }
+    } catch (_) {}
+
     if (args.length === 0) {
       const idle = ['Bolo baby 🥺', 'hum...', 'Type bby help', 'Ki bolbe?'];
-      const res = await api.sendMessage(idle[Math.floor(Math.random() * idle.length)], event.threadId);
+      const res = await api.sendMessage(idle[Math.floor(Math.random() * idle.length)], threadID);
 
       if (res && res.messageID) {
         database.setReplyData(res.messageID, { commandName: 'bby' });
@@ -24,71 +38,85 @@ module.exports = {
       return res;
     }
 
-    const uid  = event.senderID;
-    const text = args.join(' ').toLowerCase();
+    const text = args.join(' ');
 
     try {
-      if (args[0] === 'remove') {
-        const msg = text.replace('remove ', '');
-        const res = await axios.get(`${BASE_URL}?remove=${encodeURIComponent(msg)}&senderID=${uid}`);
-        const sent = await api.sendMessage(res.data.message, event.threadId);
+      if (args[0] === 'remove' || args[0] === 'rm') {
+        const query = text.replace(/^(remove|rm)\s*/i, '');
+        const parts = query.split(/\s*-\s*/);
+        if (parts.length < 2) {
+          return api.sendMessage('❌ Invalid format! Usage: bby remove <message> - <reply>', threadID);
+        }
+        const [ask, ans] = parts.map(p => p.trim());
+        const res = await axios.get(`${BASE_URL}/delete?ask=${encodeURIComponent(ask)}&ans=${encodeURIComponent(ans)}`);
+        const sent = await api.sendMessage(res.data.message || '✅ Reply removed.', threadID);
         if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
         return sent;
       }
 
       if (args[0] === 'list') {
-        const res = await axios.get(`${BASE_URL}?list=all`);
+        const res = await axios.get(`${BASE_URL}/list`);
         const data = res.data;
         const sent = await api.sendMessage(
-          `❇️ Total Teaches: ${data.length || 'N/A'}\n♻️ Total Responses: ${data.responseLength || 'N/A'}`,
-          event.threadId
+          `♾ Total Questions Learned: ${data.totalQuestions || 'N/A'}\n★ Total Replies Stored: ${data.totalReplies || 'N/A'}\n☠︎︎ Developer: ${data.author || 'ULLASH'}`,
+          threadID
         );
         if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
         return sent;
       }
 
-      if (args[0] === 'msg') {
-        const msg = text.replace('msg ', '');
-        const res = await axios.get(`${BASE_URL}?list=${encodeURIComponent(msg)}`);
-        const sent = await api.sendMessage(`Message "${msg}" → ${res.data.data}`, event.threadId);
-        if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
-        return sent;
-      }
-
       if (args[0] === 'teach') {
-        const parts = text.replace('teach ', '').split(/\s*-\s*/);
-        if (parts.length < 2) return api.sendMessage('❌ Invalid format! Usage: bby teach <message> - <reply>', event.threadId);
-        const [question, reply] = parts;
-        const res = await axios.get(`${BASE_URL}?teach=${encodeURIComponent(question)}&reply=${encodeURIComponent(reply)}&senderID=${uid}`);
-        const sent = await api.sendMessage(`✅ Taught!\n${res.data.message}`, event.threadId);
+        const query = text.replace(/^teach\s*/i, '');
+        const parts = query.split(/\s*-\s*/);
+        if (parts.length < 2) {
+          return api.sendMessage('❌ Invalid format! Usage: bby teach <message> - <reply>', threadID);
+        }
+        const [ask, ans] = parts.map(p => p.trim());
+
+        const res = await axios.get(`${BASE_URL}/teach?ask=${encodeURIComponent(ask)}&ans=${encodeURIComponent(ans)}&senderID=${uid}&senderName=${encodeURIComponent(senderName)}&groupID=${encodeURIComponent(threadID)}`);
+        const sent = await api.sendMessage(res.data.message || '✅ Taught successfully!', threadID);
         if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
         return sent;
       }
 
-      const res = await axios.get(`${BASE_URL}?text=${encodeURIComponent(text)}&senderID=${uid}&font=1`);
-      const sent = await api.sendMessage(res.data.reply || '...', event.threadId);
+      const res = await axios.get(`${BASE_URL}/simsimi?text=${encodeURIComponent(text)}&senderName=${encodeURIComponent(senderName)}`);
+      const reply = Array.isArray(res.data.response) ? res.data.response[0] : res.data.response;
+      const sent = await api.sendMessage(reply || '...', threadID);
 
       if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
       return sent;
 
     } catch (error) {
       logger.error('bby error', { error: error.message });
-      return api.sendMessage('❌ Baby AI is unavailable right now.', event.threadId);
+      return api.sendMessage('❌ Baby AI is unavailable right now.', threadID);
     }
   },
 
-  async handleReply({ api, event, logger, database }) {
+  async handleReply({ api, event, logger, database, usersData }) {
     const uid  = event.senderID;
-    const text = (event.body || '').trim().toLowerCase();
+    const threadID = event.threadId || event.threadID;
+    const text = (event.body || '').trim();
     if (!text) return;
 
+    // Get user name for SimSimi personalization
+    let senderName = 'Jisan';
     try {
-      const res = await axios.get(`${BASE_URL}?text=${encodeURIComponent(text)}&senderID=${uid}&font=1`);
-      const sent = await api.sendMessage(res.data.reply || '...', event.threadId);
+      const user = database.getUser(uid);
+      if (user && user.name) {
+        senderName = user.name;
+      } else if (usersData && typeof usersData.getName === 'function') {
+        senderName = await usersData.getName(uid);
+      }
+    } catch (_) {}
+
+    try {
+      const res = await axios.get(`${BASE_URL}/simsimi?text=${encodeURIComponent(text)}&senderName=${encodeURIComponent(senderName)}`);
+      const reply = Array.isArray(res.data.response) ? res.data.response[0] : res.data.response;
+      const sent = await api.sendMessage(reply || '...', threadID);
       if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
     } catch (error) {
       logger.error('bby handleReply error', { error: error.message });
-      return api.sendMessage('❌ Baby AI is unavailable right now.', event.threadId);
+      return api.sendMessage('❌ Baby AI is unavailable right now.', threadID);
     }
   }
 };
