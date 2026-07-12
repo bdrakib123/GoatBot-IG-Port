@@ -27,7 +27,7 @@
     },
     {
         "domain": ".instagram.com",
-        "expirationDate": 1791118723.372123,
+        "expirationDate": 1791641356.769873,
         "hostOnly": false,
         "httpOnly": false,
         "name": "ds_user_id",
@@ -40,7 +40,7 @@
     },
     {
         "domain": ".instagram.com",
-        "expirationDate": 1817902723.368839,
+        "expirationDate": 1818425356.769375,
         "hostOnly": false,
         "httpOnly": false,
         "name": "csrftoken",
@@ -49,7 +49,7 @@
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "oXyunxh4FGFC9kH7CN0h4cJxX29DLF5t"
+        "value": "iGJNCfeLlsNAWG2k9FnofcJ47j8giA1V"
     },
     {
         "domain": ".instagram.com",
@@ -79,7 +79,7 @@
     },
     {
         "domain": ".instagram.com",
-        "expirationDate": 1783947479,
+        "expirationDate": 1784470157,
         "hostOnly": false,
         "httpOnly": false,
         "name": "wd",
@@ -105,20 +105,20 @@
     },
     {
         "domain": ".instagram.com",
-        "expirationDate": 1814878723.373503,
+        "expirationDate": 1815401330.198063,
         "hostOnly": false,
         "httpOnly": true,
         "name": "sessionid",
         "path": "/",
-        "sameSite": null,
+        "sameSite": "no_restriction",
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "29952506516%3A1S31ttWQ394sIx%3A0%3AAYg_dG39EZyVkUntFxrABWi_LCzPW7HxG93bmOjutQ"
+        "value": "29952506516%3AfZZV4V2fgDSOvM%3A18%3AAYhE2YMwrxq16mdp7x1M9tEgNy2MSAEu1Re3DeEKGw"
     },
     {
         "domain": ".instagram.com",
-        "expirationDate": 1783947536,
+        "expirationDate": 1784470157,
         "hostOnly": false,
         "httpOnly": false,
         "name": "dpr",
@@ -139,6 +139,6 @@
         "secure": true,
         "session": true,
         "storeId": null,
-        "value": "\"SNB\\05429952506516\\0541814878723:01ff758f9d1922d00205665dd4e25dd16fa918399e4843bbd9771ac72407840f08134ab6\""
+        "value": "VLL%2C17841429835504063%2C1785075061%3A01ff9b2db50fe5f56cb97c9d9a3b1740e5548c7747b33071904d6ed918ac34ee8f5d72e4"
     }
 ]
