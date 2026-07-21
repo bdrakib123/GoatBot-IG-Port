@@ -1,6 +1,6 @@
 'use strict';
 
-const { login } = require('@neoaz07/nkxica');
+const { login } = require('../lib/ica');
 
 const fs = require('fs-extra');
 const path = require('path');
