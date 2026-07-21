@@ -1132,7 +1132,25 @@ class InstagramBot {
 
       sendPhotoFromUrl: async (threadID, url, opts = {}) => {
         try {
-          return await ig.sendPhotoFromUrl(threadID, url, opts);
+          if (typeof ig.sendPhotoFromUrl === 'function') {
+            return await ig.sendPhotoFromUrl(threadID, url, opts);
+          }
+          const utils = require('../utils.js');
+          const stream = await utils.getStreamFromURL(url);
+          const headerType = (stream.headers?.['content-type'] || '').split(';')[0].trim().toLowerCase();
+          let ext = utils.getExtFromMimeType(headerType);
+          if (!ext || ext === 'unknown') ext = 'jpg';
+          const tempPath = path.join(process.cwd(), 'temp', `photo_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`);
+          await fs.ensureDir(path.dirname(tempPath));
+          const writer = fs.createWriteStream(tempPath);
+          stream.pipe(writer);
+          await new Promise((resolve, reject) => {
+            writer.on('finish', resolve);
+            writer.on('error', reject);
+          });
+          const result = await ig.sendPhoto(threadID, tempPath, opts);
+          fs.unlink(tempPath).catch(() => {});
+          return result;
         } catch (error) {
           logger.error('Failed to send photo from url', { error: error.message, threadID });
           throw error;
@@ -1141,7 +1159,25 @@ class InstagramBot {
 
       sendVideoFromUrl: async (threadID, url, opts = {}) => {
         try {
-          return await ig.sendVideoFromUrl(threadID, url, opts);
+          if (typeof ig.sendVideoFromUrl === 'function') {
+            return await ig.sendVideoFromUrl(threadID, url, opts);
+          }
+          const utils = require('../utils.js');
+          const stream = await utils.getStreamFromURL(url);
+          const headerType = (stream.headers?.['content-type'] || '').split(';')[0].trim().toLowerCase();
+          let ext = utils.getExtFromMimeType(headerType);
+          if (!ext || ext === 'unknown') ext = 'mp4';
+          const tempPath = path.join(process.cwd(), 'temp', `video_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`);
+          await fs.ensureDir(path.dirname(tempPath));
+          const writer = fs.createWriteStream(tempPath);
+          stream.pipe(writer);
+          await new Promise((resolve, reject) => {
+            writer.on('finish', resolve);
+            writer.on('error', reject);
+          });
+          const result = await ig.sendVideo(threadID, tempPath, opts);
+          fs.unlink(tempPath).catch(() => {});
+          return result;
         } catch (error) {
           logger.error('Failed to send video from url', { error: error.message, threadID });
           throw error;
@@ -1150,7 +1186,25 @@ class InstagramBot {
 
       sendVoiceFromUrl: async (threadID, url, opts = {}) => {
         try {
-          return await ig.sendVoiceFromUrl(threadID, url, opts);
+          if (typeof ig.sendVoiceFromUrl === 'function') {
+            return await ig.sendVoiceFromUrl(threadID, url, opts);
+          }
+          const utils = require('../utils.js');
+          const stream = await utils.getStreamFromURL(url);
+          const headerType = (stream.headers?.['content-type'] || '').split(';')[0].trim().toLowerCase();
+          let ext = utils.getExtFromMimeType(headerType);
+          if (!ext || ext === 'unknown') ext = 'mp3';
+          const tempPath = path.join(process.cwd(), 'temp', `audio_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`);
+          await fs.ensureDir(path.dirname(tempPath));
+          const writer = fs.createWriteStream(tempPath);
+          stream.pipe(writer);
+          await new Promise((resolve, reject) => {
+            writer.on('finish', resolve);
+            writer.on('error', reject);
+          });
+          const result = await ig.sendVoice(threadID, tempPath, opts);
+          fs.unlink(tempPath).catch(() => {});
+          return result;
         } catch (error) {
           logger.error('Failed to send voice from url', { error: error.message, threadID });
           throw error;
