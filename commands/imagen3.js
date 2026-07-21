@@ -19,7 +19,7 @@ module.exports = {
     api.setMessageReaction('⏳', event.messageID, () => {}, true);
 
     try {
-      const url = `https://renzweb.onrender.com/api/imagen3?prompt=${encodeURIComponent(prompt)}`;
+      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true&seed=${Date.now()}`;
 
       await message.reply({
         attachment: url

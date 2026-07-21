@@ -19,7 +19,7 @@ module.exports = {
     api.setMessageReaction("⏳", event.messageID, () => {}, true);
 
     try {
-      const url = `https://nkximggen.onrender.com/api/genx?prompt=${encodeURIComponent(prompt)}`;
+      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true&seed=${Date.now()}`;
       await message.reply({
         body: `✅ | GenX: "${prompt}"`,
         attachment: url

@@ -19,7 +19,7 @@ module.exports = {
     api.setMessageReaction("⏳", event.messageID, () => {}, true);
 
     try {
-      const url = `https://nkximggen.onrender.com/api/aiphoto?prompt=${encodeURIComponent(prompt)}`;
+      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent('ultra detailed realistic photo ' + prompt)}?nologo=true&seed=${Date.now()}`;
       await message.reply({
         body: `✅ | Generated: "${prompt}"`,
         attachment: url

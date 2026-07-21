@@ -20,8 +20,7 @@ module.exports = {
     api.setMessageReaction("⏳", event.messageID, () => {}, true);
 
     try {
-      // Using a known working public API for this since the source repo depends on a GoatBot API key
-      const url = `https://smfahim.xyz/mj?prompt=${encodeURIComponent(prompt)}`;
+      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent('midjourney style ' + prompt)}?nologo=true&seed=${Date.now()}`;
       await message.reply({
         body: `✅ | Midjourney Style: "${prompt}"`,
         attachment: url
