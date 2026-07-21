@@ -109,12 +109,9 @@ module.exports = {
       const stats = await fs.stat(tempPath);
       if (stats.size === 0) throw new Error("Generated audio is empty");
 
-      const stream = fs.createReadStream(tempPath);
-      stream.name = 'say.mp3';
-
       await message.reply({
         body: `🎙️ ${voiceOrText.toUpperCase()} says:`,
-        attachment: stream
+        attachment: tempPath
       });
 
       setTimeout(() => fs.remove(tempPath).catch(() => {}), 30000);
