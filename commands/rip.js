@@ -15,7 +15,7 @@ module.exports = {
   },
 
   onStart: async function ({ api, event, args, message, usersData }) {
-    let targetID = Object.keys(event.mentions || {})[0] || (event.messageReply ? event.messageReply.senderID : (args[0] ? args[0].replace(/^@+/, '') : event.senderID));
+    let targetID = Object.keys(event.mentions || {})[0] || (event.messageReply ? (event.messageReply.senderID || event.messageReply.senderId) : (args[0] ? args[0].replace(/^@+/, '') : event.senderID));
 
     api.setMessageReaction('🪦', event.messageID, () => {}, true);
 

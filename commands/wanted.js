@@ -29,7 +29,7 @@ module.exports = {
 
   onStart: async function ({ event, args, message, api, usersData }) {
     const mentions = Object.keys(event.mentions || {});
-    const mentionID = mentions[0] || (event.messageReply ? event.messageReply.senderID : (args[0] ? args[0].replace(/^@+/, '') : event.senderID));
+    const mentionID = mentions[0] || (event.messageReply ? (event.messageReply.senderID || event.messageReply.senderId) : (args[0] ? args[0].replace(/^@+/, '') : event.senderID));
     if (!mentionID) return message.reply('Mention someone or reply to their message!');
 
     api.setMessageReaction('⏳', event.messageID, () => {}, true);

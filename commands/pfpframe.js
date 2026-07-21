@@ -16,7 +16,7 @@ module.exports = {
 
   onStart: async function ({ event, message, api, args, usersData }) {
     let targetArg = args.find(a => !['neon', 'gold', 'cyber', 'vip', 'fire', 'rainbow', 'diamond', 'anime'].includes(a.toLowerCase()));
-    let mentionID = Object.keys(event.mentions || {})[0] || (event.messageReply ? event.messageReply.senderID : (targetArg ? targetArg.replace(/^@+/, '') : event.senderID));
+    let mentionID = Object.keys(event.mentions || {})[0] || (event.messageReply ? (event.messageReply.senderID || event.messageReply.senderId) : (targetArg ? targetArg.replace(/^@+/, '') : event.senderID));
     let frameStyle = (args.find(a => ['neon', 'gold', 'cyber', 'vip', 'fire', 'rainbow', 'diamond', 'anime'].includes(a.toLowerCase())) || 'neon').toLowerCase();
 
     api.setMessageReaction('⏳', event.messageID, () => {}, true);

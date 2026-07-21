@@ -24,9 +24,9 @@ module.exports = {
       } else if (mentions.length === 1) {
         uid1 = event.senderID;
         uid2 = mentions[0];
-      } else if (event.messageReply && event.messageReply.senderID) {
+      } else if (event.messageReply && (event.messageReply.senderID || event.messageReply.senderId)) {
         uid1 = event.senderID;
-        uid2 = event.messageReply.senderID;
+        uid2 = event.messageReply.senderID || event.messageReply.senderId;
       } else if (args.length >= 2) {
         uid1 = args[0].replace(/^@+/, '');
         uid2 = args[1].replace(/^@+/, '');

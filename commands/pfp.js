@@ -42,7 +42,7 @@ module.exports = {
         // If not, we might need to fetch it, but let's try the common patterns
         const reply = event.messageReply || {};
         const replyBody = reply.body || '';
-        const senderID = reply.senderID;
+        const senderID = reply.senderID || reply.senderId;
 
         if (senderID) {
           const urlMatch = replyBody.match(/instagram\.com\/([^/?#&]+)/);

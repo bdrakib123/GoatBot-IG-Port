@@ -22,8 +22,9 @@ module.exports = {
         isUid = true;
       } else if (event.replyToItemId) {
         const reply = event.messageReply || {};
-        if (reply.senderID) {
-          targetInput = reply.senderID;
+        const replySender = reply.senderID || reply.senderId;
+        if (replySender) {
+          targetInput = replySender;
           isUid = true;
         }
       }

@@ -18,8 +18,8 @@ module.exports = {
     const mentions = Object.keys(event.mentions || {});
     if (mentions.length > 0) {
       uid = mentions[0];
-    } else if (event.messageReply && event.messageReply.senderID) {
-      uid = event.messageReply.senderID;
+    } else if (event.messageReply && (event.messageReply.senderID || event.messageReply.senderId)) {
+      uid = event.messageReply.senderID || event.messageReply.senderId;
     } else if (args && args.length > 0) {
       uid = args[0].replace(/^@+/, '');
     } else {

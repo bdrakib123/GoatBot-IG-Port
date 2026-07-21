@@ -17,7 +17,7 @@ module.exports = {
   onStart: async function ({ api, event, args, message, usersData }) {
     const mentions = Object.keys(event.mentions || {});
     let user1 = event.senderID;
-    let user2 = mentions[0] || (event.messageReply ? event.messageReply.senderID : (args[0] ? args[0].replace(/^@+/, '') : null));
+    let user2 = mentions[0] || (event.messageReply ? (event.messageReply.senderID || event.messageReply.senderId) : (args[0] ? args[0].replace(/^@+/, '') : null));
 
     if (!user2 || user1 === user2) {
       return message.reply('❌ Please mention or reply to someone to slap!\nExample: !slap @user');

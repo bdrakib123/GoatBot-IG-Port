@@ -27,8 +27,8 @@ module.exports = {
       user2 = mentions[1];
     } else if (mentions.length === 1) {
       user2 = mentions[0];
-    } else if (event.messageReply && event.messageReply.senderID) {
-      user2 = event.messageReply.senderID;
+    } else if (event.messageReply && (event.messageReply.senderID || event.messageReply.senderId)) {
+      user2 = event.messageReply.senderID || event.messageReply.senderId;
     } else if (args && args.length >= 2) {
       user1 = args[0].replace(/^@+/, '');
       user2 = args[1].replace(/^@+/, '');
