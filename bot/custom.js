@@ -1,15 +1,18 @@
-const { log } = global.utils;
+'use strict';
 
-module.exports = async function ({ api, threadModel, userModel, dashBoardModel, globalModel, threadsData, usersData, dashBoardData, globalData, getText }) {
+const logger = require('../utils/logger');
+
+module.exports = async function ({ api, threadsData, usersData, globalData, getText }) {
         if (typeof api.refreshFb_dtsg === "function") {
                 setInterval(async () => {
                         api.refreshFb_dtsg()
                                 .then(() => {
-                                        log.succes("refreshFb_dtsg", getText("custom", "refreshedFb_dtsg"));
+                                        logger.info("refreshedFb_dtsg successfully");
                                 })
                                 .catch((err) => {
-                                        log.error("refreshFb_dtsg", getText("custom", "refreshedFb_dtsgError"), err);
+                                        logger.error("Error refreshing fb_dtsg", { error: err.message });
                                 });
                 }, 1000 * 60 * 60 * 48);
         }
 };
+
