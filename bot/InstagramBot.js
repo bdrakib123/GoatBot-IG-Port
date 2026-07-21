@@ -44,8 +44,10 @@ class InstagramBot {
   }
 
   startHealthServer() {
-    const port = parseInt(process.env.PORT || config.DASHBOARD_PORT || 3000, 10);
-    const dashboardHtml = path.join(__dirname, '..', 'dashboard', 'index.html');
+    let port = parseInt(process.env.PORT || config.DASHBOARD_PORT || 3000, 10);
+    const dashboardHtml = fs.existsSync(path.join(process.cwd(), 'dashboard', 'index.html'))
+      ? path.join(process.cwd(), 'dashboard', 'index.html')
+      : path.join(__dirname, '..', 'dashboard', 'index.html');
 
     const recentActivity = [];
     this._logActivity = (text) => {
@@ -62,8 +64,9 @@ class InstagramBot {
           const html = fs.readFileSync(dashboardHtml, 'utf-8');
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
           return res.end(html);
-        } catch {
-          res.writeHead(500); return res.end('Dashboard not found');
+        } catch (err) {
+          logger.error('Dashboard HTML error', { error: err.message });
+          res.writeHead(500); return res.end(`Dashboard error: ${err.message}`);
         }
       }
 
@@ -319,10 +322,16 @@ class InstagramBot {
     });
 
     server.listen(port, '0.0.0.0', () => {
-      logger.info(`Dashboard running on port ${port} — visit / to open`);
+      logger.info(`Dashboard running on port ${port} — visit http://localhost:${port}/ to open`);
     });
     server.on('error', err => {
-      logger.error('Dashboard server error', { error: err.message });
+      if (err.code === 'EADDRINUSE') {
+        logger.warn(`Dashboard port ${port} in use, trying ${port + 1}...`);
+        port++;
+        setTimeout(() => server.listen(port, '0.0.0.0'), 500);
+      } else {
+        logger.error('Dashboard server error', { error: err.message });
+      }
     });
     return server;
   }
