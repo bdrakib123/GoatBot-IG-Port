@@ -19,6 +19,20 @@
 
 ---
 
+## 📸 Screenshots & Interface Showcase
+
+<div align="center">
+  <h3>🖥️ Web Analytics & Real-Time Management Dashboard</h3>
+  <img src="assets/screenshots/dashboard-overview.jpg" alt="GoatBot Dashboard Overview" width="100%" style="border-radius: 10px; margin-bottom: 20px;" />
+
+  <br/><br/>
+
+  <h3>📱 Instagram Direct Messenger Interactive Commands Showcase</h3>
+  <img src="assets/screenshots/chat-commands.jpg" alt="GoatBot Chat Commands Showcase" width="100%" style="border-radius: 10px; margin-bottom: 20px;" />
+</div>
+
+---
+
 ## 🔥 Key Features
 
 ### 🤖 1:1 GoatBot V2 Architecture
