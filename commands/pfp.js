@@ -126,10 +126,16 @@ module.exports = {
     caption += `🔗 Profile: https://instagram.com/${username}`;
 
     try {
-      await message.reply({ body: caption, attachment: pfpUrl });
+      const res = await axios.get(pfpUrl, { responseType: 'arraybuffer', timeout: 15000 });
+      const imgBuffer = Buffer.from(res.data);
+      await message.reply({ body: caption, attachment: imgBuffer });
     } catch (error) {
-      logger.error('Failed to send profile picture as attachment', { error: error.message });
-      await message.reply(`${caption}\n\n🖼️ PFP URL: ${pfpUrl}`);
+      logger.error('Failed to send profile picture buffer', { error: error.message });
+      try {
+        await api.sendPhotoFromUrl(event.threadId || event.threadID, pfpUrl, { caption });
+      } catch (err2) {
+        await message.reply(caption);
+      }
     }
   },
 

@@ -1,3 +1,5 @@
+const axios = require('axios');
+
 module.exports = {
   config: {
     name: 'userinfo',
@@ -75,11 +77,13 @@ module.exports = {
 
       const pfpUrl = userInfo.profilePicUrlHd || userInfo.profile_pic_url_hd || userInfo.profilePicUrl;
 
-      if (pfpUrl) {
-          return message.reply({ body: msg, attachment: pfpUrl });
-      } else {
-          return message.reply(msg);
+      if (pfpUrl && pfpUrl.startsWith('http')) {
+        try {
+          const res = await axios.get(pfpUrl, { responseType: 'arraybuffer', timeout: 15000 });
+          return message.reply({ body: msg, attachment: Buffer.from(res.data) });
+        } catch (_) {}
       }
+      return message.reply(msg);
 
     } catch (error) {
       logger.error('Error in userinfo command', { error: error.message });
