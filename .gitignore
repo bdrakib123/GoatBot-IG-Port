@@ -37,3 +37,4 @@ bot.log
 bot_output.log
 bot/neokex-ica/node_modules
 bot/neokex-ica/dist
+.aider*

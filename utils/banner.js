@@ -25,10 +25,10 @@ class Banner {
   static commandExecuted(name, user, ok = true) { logger.command(name, user, ok); }
 
   static messageReceived(from, preview) {
-    if ((config.LOG_LEVEL || 'info') === 'debug') {
-      let p = '';
-      try { p = typeof preview === 'string' ? preview : JSON.stringify(preview); } catch (_) { p = '[n/a]'; }
-      logger.debug(`Message from ${from}: ${p.length > 40 ? p.substring(0, 40) + '...' : p}`);
+    let p = '';
+    try { p = typeof preview === 'string' ? preview : JSON.stringify(preview); } catch (_) { p = '[n/a]'; }
+    if (p) {
+      logger.info(`📩 Message from ${from}: "${p.length > 60 ? p.substring(0, 60) + '...' : p}"`);
     }
   }
 

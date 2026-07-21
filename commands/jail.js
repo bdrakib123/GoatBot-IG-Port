@@ -13,12 +13,15 @@ module.exports = {
     usage: 'jail [@tag or reply]'
   },
 
-  onStart: async function ({ api, event, message, usersData }) {
+  onStart: async function ({ api, event, args, message, usersData }) {
     let uid;
-    if (Object.keys(event.mentions).length > 0) {
-      uid = Object.keys(event.mentions)[0];
-    } else if (event.type === 'message_reply') {
+    const mentions = Object.keys(event.mentions || {});
+    if (mentions.length > 0) {
+      uid = mentions[0];
+    } else if (event.messageReply && event.messageReply.senderID) {
       uid = event.messageReply.senderID;
+    } else if (args && args.length > 0) {
+      uid = args[0].replace(/^@+/, '');
     } else {
       uid = event.senderID;
     }
@@ -27,14 +30,14 @@ module.exports = {
 
     try {
       const name = await usersData.getName(uid);
-      const userInfoMap = await api.getUserInfo(uid).catch(() => ({}));
-      const userInfo = userInfoMap[uid] || {};
-      const imageUrl = userInfo.profilePicUrlHd || userInfo.hdProfilePicUrlInfo?.url || userInfo.profile_pic_url_hd || userInfo.profilePicUrl;
-
-      if (!imageUrl) throw new Error('Could not find profile picture');
-
-      const res = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-      const avatar = await loadImage(Buffer.from(res.data, 'binary'));
+      let avatar = null;
+      try {
+        const photoUrl = await api.getAvatarUrl(uid);
+        if (photoUrl && photoUrl.startsWith('http')) {
+          const res = await axios.get(photoUrl, { responseType: 'arraybuffer', timeout: 10000 });
+          avatar = await loadImage(Buffer.from(res.data));
+        }
+      } catch (_) {}
 
       const width = 600;
       const height = 800;
@@ -63,7 +66,15 @@ module.exports = {
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
       ctx.clip();
-      ctx.drawImage(avatar, centerX - radius, centerY - radius, radius * 2, radius * 2);
+      if (avatar) {
+        ctx.drawImage(avatar, centerX - radius, centerY - radius, radius * 2, radius * 2);
+      } else {
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 100px Arial';
+        ctx.fillText((name[0] || '?').toUpperCase(), centerX, centerY + 30);
+      }
       ctx.restore();
 
       // Thin Bars
@@ -109,7 +120,7 @@ module.exports = {
       await message.reply({
         body: `@${name} WANTED! 🔒 Locked Up! (Clear view)`,
         mentions: [{ tag: name, id: uid }],
-        attachment: canvas.toBuffer()
+        attachment: canvas.toBuffer('image/png')
       });
       api.setMessageReaction('✅', event.messageID, () => {}, true);
     } catch (error) {

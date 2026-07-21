@@ -12,12 +12,15 @@ module.exports = {
     usage: 'blur [@mention or reply]'
   },
 
-  onStart: async function ({ api, event, message, usersData }) {
+  onStart: async function ({ api, event, args, message, usersData }) {
     let uid;
-    if (Object.keys(event.mentions).length > 0) {
-      uid = Object.keys(event.mentions)[0];
-    } else if (event.type === 'message_reply') {
+    const mentions = Object.keys(event.mentions || {});
+    if (mentions.length > 0) {
+      uid = mentions[0];
+    } else if (event.messageReply && event.messageReply.senderID) {
       uid = event.messageReply.senderID;
+    } else if (args && args.length > 0) {
+      uid = args[0].replace(/^@+/, '');
     } else {
       uid = event.senderID;
     }
@@ -25,10 +28,8 @@ module.exports = {
     api.setMessageReaction('⏳', event.messageID, () => {}, true);
 
     try {
-      const userInfo = (await api.getUserInfo(uid))[uid];
-      const avatarURL = userInfo.profilePicUrlHd || userInfo.hdProfilePicUrlInfo?.url || userInfo.profile_pic_url_hd || userInfo.profilePicUrl;
-
-      if (!avatarURL) throw new Error('Could not find profile picture URL');
+      const avatarURL = await api.getAvatarUrl(uid);
+      if (!avatarURL || !avatarURL.startsWith('http')) throw new Error('Could not find profile picture URL');
 
       const res = await axios.get(`https://api.popcat.xyz/v2/blur?image=${encodeURIComponent(avatarURL)}`, {
         responseType: 'arraybuffer'

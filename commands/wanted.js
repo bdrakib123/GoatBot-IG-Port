@@ -27,8 +27,9 @@ module.exports = {
     usage: 'wanted @mention'
   },
 
-  onStart: async function ({ event, message, api, usersData }) {
-    const mentionID = Object.keys(event.mentions)[0] || (event.type === 'message_reply' ? event.messageReply.senderID : null);
+  onStart: async function ({ event, args, message, api, usersData }) {
+    const mentions = Object.keys(event.mentions || {});
+    const mentionID = mentions[0] || (event.messageReply ? event.messageReply.senderID : (args[0] ? args[0].replace(/^@+/, '') : event.senderID));
     if (!mentionID) return message.reply('Mention someone or reply to their message!');
 
     api.setMessageReaction('⏳', event.messageID, () => {}, true);
@@ -37,14 +38,14 @@ module.exports = {
       const rawName = await usersData.getName(mentionID);
       const name = toEnglishName(rawName);
 
-      const userInfoMap = await api.getUserInfo(mentionID).catch(() => ({}));
-      const userInfo = userInfoMap[mentionID] || {};
-      const photoUrl = userInfo.profilePicUrlHd || userInfo.hdProfilePicUrlInfo?.url || userInfo.profile_pic_url_hd || userInfo.profilePicUrl;
-
-      if (!photoUrl) throw new Error('Could not find photo');
-
-      const res = await axios.get(photoUrl, { responseType: 'arraybuffer' });
-      const avatar = await loadImage(Buffer.from(res.data, 'binary'));
+      let avatar = null;
+      try {
+        const photoUrl = await api.getAvatarUrl(mentionID);
+        if (photoUrl && photoUrl.startsWith('http')) {
+          const res = await axios.get(photoUrl, { responseType: 'arraybuffer', timeout: 10000 });
+          avatar = await loadImage(Buffer.from(res.data));
+        }
+      } catch (_) {}
 
       const canvas = createCanvas(700, 900);
       const ctx = canvas.getContext('2d');
@@ -66,7 +67,15 @@ module.exports = {
       ctx.beginPath();
       ctx.rect(100, 180, 500, 500);
       ctx.clip();
-      ctx.drawImage(avatar, 100, 180, 500, 500);
+      if (avatar) {
+        ctx.drawImage(avatar, 100, 180, 500, 500);
+      } else {
+        ctx.fillStyle = '#333';
+        ctx.fillRect(100, 180, 500, 500);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 150px Arial';
+        ctx.fillText((name[0] || '?').toUpperCase(), 350, 480);
+      }
       ctx.restore();
       ctx.lineWidth = 4;
       ctx.strokeStyle = '#000';
@@ -89,7 +98,7 @@ module.exports = {
 
       await message.reply({
         body: `📜 WANTED POSTER\n👤 Name: ${name}\n💣 Crime: ${crime}\n💰 Reward: ${reward}`,
-        attachment: canvas.toBuffer()
+        attachment: canvas.toBuffer('image/png')
       });
       api.setMessageReaction('✅', event.messageID, () => {}, true);
     } catch (err) {

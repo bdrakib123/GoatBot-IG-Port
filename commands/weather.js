@@ -90,8 +90,8 @@ module.exports = {
 			X += 135;
 		}
 
-		const pathSaveImg = path.join(__dirname, `tmp/weather_${areaKey}.jpg`);
-		fs.writeFileSync(pathSaveImg, canvas.toBuffer());
+		const pathSaveImg = path.join(__dirname, `tmp/weather_${areaKey}.png`);
+		fs.writeFileSync(pathSaveImg, canvas.toBuffer('image/png'));
 
 		return message.reply({
 			body: msg,

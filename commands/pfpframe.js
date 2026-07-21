@@ -15,7 +15,8 @@ module.exports = {
   },
 
   onStart: async function ({ event, message, api, args, usersData }) {
-    let mentionID = Object.keys(event.mentions || {})[0] || (event.messageReply ? event.messageReply.senderID : event.senderID);
+    let targetArg = args.find(a => !['neon', 'gold', 'cyber', 'vip', 'fire', 'rainbow', 'diamond', 'anime'].includes(a.toLowerCase()));
+    let mentionID = Object.keys(event.mentions || {})[0] || (event.messageReply ? event.messageReply.senderID : (targetArg ? targetArg.replace(/^@+/, '') : event.senderID));
     let frameStyle = (args.find(a => ['neon', 'gold', 'cyber', 'vip', 'fire', 'rainbow', 'diamond', 'anime'].includes(a.toLowerCase())) || 'neon').toLowerCase();
 
     api.setMessageReaction('⏳', event.messageID, () => {}, true);
@@ -83,13 +84,13 @@ module.exports = {
         ctx.shadowColor = '#67E8F9';
         ctx.shadowBlur = 30;
       } else if (frameStyle === 'rainbow') {
-        const gradient = ctx.createConicGradient(0, center, center);
-        gradient.addColorStop(0, '#Red');
-        gradient.addColorStop(0.2, '#Orange');
-        gradient.addColorStop(0.4, '#Yellow');
-        gradient.addColorStop(0.6, '#Green');
-        gradient.addColorStop(0.8, '#Blue');
-        gradient.addColorStop(1, '#Violet');
+        const gradient = ctx.createLinearGradient(0, 0, size, size);
+        gradient.addColorStop(0, 'red');
+        gradient.addColorStop(0.2, 'orange');
+        gradient.addColorStop(0.4, 'yellow');
+        gradient.addColorStop(0.6, 'green');
+        gradient.addColorStop(0.8, 'blue');
+        gradient.addColorStop(1, 'violet');
         ctx.strokeStyle = gradient;
         ctx.shadowColor = '#E0E7FF';
         ctx.shadowBlur = 25;

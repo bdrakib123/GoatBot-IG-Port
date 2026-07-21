@@ -13,7 +13,7 @@ module.exports = {
     usage: 'gay @mention @mention OR gay @mention OR reply'
   },
 
-  onStart: async function ({ api, event, message, usersData }) {
+  onStart: async function ({ api, event, message, args, usersData }) {
     try {
       const mentions = Object.keys(event.mentions || {});
       let uid1, uid2;
@@ -24,9 +24,15 @@ module.exports = {
       } else if (mentions.length === 1) {
         uid1 = event.senderID;
         uid2 = mentions[0];
-      } else if (event.messageReply) {
+      } else if (event.messageReply && event.messageReply.senderID) {
         uid1 = event.senderID;
         uid2 = event.messageReply.senderID;
+      } else if (args.length >= 2) {
+        uid1 = args[0].replace(/^@+/, '');
+        uid2 = args[1].replace(/^@+/, '');
+      } else if (args.length === 1) {
+        uid1 = event.senderID;
+        uid2 = args[0].replace(/^@+/, '');
       } else {
         return message.reply('Please reply to a message or mention one or two users.');
       }
@@ -35,23 +41,23 @@ module.exports = {
       const name1 = await usersData.getName(uid1);
       const name2 = await usersData.getName(uid2);
 
-      const userInfo1 = (await api.getUserInfo(uid1).catch(() => ({})))[uid1] || {};
-      const userInfo2 = (await api.getUserInfo(uid2).catch(() => ({})))[uid2] || {};
+      let img1 = null, img2 = null;
 
-      const url1 = userInfo1.profilePicUrlHd || userInfo1.hdProfilePicUrlInfo?.url || userInfo1.profile_pic_url_hd || userInfo1.profilePicUrl;
-      const url2 = userInfo2.profilePicUrlHd || userInfo2.hdProfilePicUrlInfo?.url || userInfo2.profile_pic_url_hd || userInfo2.profilePicUrl;
+      try {
+        const u1 = await api.getAvatarUrl(uid1);
+        if (u1 && u1.startsWith('http')) {
+          const res1 = await axios.get(u1, { responseType: 'arraybuffer', timeout: 10000 });
+          img1 = await loadImage(Buffer.from(res1.data));
+        }
+      } catch (_) {}
 
-      if (!url1 || !url2) throw new Error('Could not retrieve user profile pictures.');
-
-      const [res1, res2] = await Promise.all([
-        axios.get(url1, { responseType: 'arraybuffer', timeout: 10000 }),
-        axios.get(url2, { responseType: 'arraybuffer', timeout: 10000 })
-      ]);
-
-      const [img1, img2] = await Promise.all([
-        loadImage(Buffer.from(res1.data)),
-        loadImage(Buffer.from(res2.data))
-      ]);
+      try {
+        const u2 = await api.getAvatarUrl(uid2);
+        if (u2 && u2.startsWith('http')) {
+          const res2 = await axios.get(u2, { responseType: 'arraybuffer', timeout: 10000 });
+          img2 = await loadImage(Buffer.from(res2.data));
+        }
+      } catch (_) {}
 
       const canvas = createCanvas(800, 400);
       const ctx = canvas.getContext('2d');
@@ -73,7 +79,16 @@ module.exports = {
       ctx.arc(200, 180, 100, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(img1, 100, 80, 200, 200);
+      if (img1) {
+        ctx.drawImage(img1, 100, 80, 200, 200);
+      } else {
+        ctx.fillStyle = '#312E81';
+        ctx.fillRect(100, 80, 200, 200);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 70px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText((name1[0] || '?').toUpperCase(), 200, 205);
+      }
       ctx.restore();
 
       ctx.lineWidth = 8;
@@ -90,7 +105,16 @@ module.exports = {
       ctx.arc(600, 180, 100, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(img2, 500, 80, 200, 200);
+      if (img2) {
+        ctx.drawImage(img2, 500, 80, 200, 200);
+      } else {
+        ctx.fillStyle = '#831843';
+        ctx.fillRect(500, 80, 200, 200);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 70px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText((name2[0] || '?').toUpperCase(), 600, 205);
+      }
       ctx.restore();
 
       ctx.lineWidth = 8;

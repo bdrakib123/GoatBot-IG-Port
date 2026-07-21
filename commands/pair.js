@@ -37,23 +37,23 @@ module.exports = {
       const name1 = await usersData.getName(senderID);
       const name2 = await usersData.getName(soulmateID);
 
-      const userInfo1 = (await api.getUserInfo(senderID).catch(() => ({})))[senderID] || {};
-      const userInfo2 = (await api.getUserInfo(soulmateID).catch(() => ({})))[soulmateID] || {};
+      let img1 = null, img2 = null;
 
-      const url1 = userInfo1.profilePicUrlHd || userInfo1.hdProfilePicUrlInfo?.url || userInfo1.profile_pic_url_hd || userInfo1.profilePicUrl;
-      const url2 = userInfo2.profilePicUrlHd || userInfo2.hdProfilePicUrlInfo?.url || userInfo2.profile_pic_url_hd || userInfo2.profilePicUrl;
+      try {
+        const u1 = await api.getAvatarUrl(senderID);
+        if (u1 && u1.startsWith('http')) {
+          const res1 = await axios.get(u1, { responseType: 'arraybuffer', timeout: 10000 });
+          img1 = await loadImage(Buffer.from(res1.data));
+        }
+      } catch (_) {}
 
-      if (!url1 || !url2) throw new Error('Could not retrieve member profile pictures.');
-
-      const [res1, res2] = await Promise.all([
-        axios.get(url1, { responseType: 'arraybuffer', timeout: 10000 }),
-        axios.get(url2, { responseType: 'arraybuffer', timeout: 10000 })
-      ]);
-
-      const [img1, img2] = await Promise.all([
-        loadImage(Buffer.from(res1.data)),
-        loadImage(Buffer.from(res2.data))
-      ]);
+      try {
+        const u2 = await api.getAvatarUrl(soulmateID);
+        if (u2 && u2.startsWith('http')) {
+          const res2 = await axios.get(u2, { responseType: 'arraybuffer', timeout: 10000 });
+          img2 = await loadImage(Buffer.from(res2.data));
+        }
+      } catch (_) {}
 
       const lovePercent = Math.floor(Math.random() * 41) + 60; // 60% to 100%
 
@@ -73,7 +73,16 @@ module.exports = {
       ctx.arc(180, 200, 100, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(img1, 80, 100, 200, 200);
+      if (img1) {
+        ctx.drawImage(img1, 80, 100, 200, 200);
+      } else {
+        ctx.fillStyle = '#312E81';
+        ctx.fillRect(80, 100, 200, 200);
+        ctx.fillStyle = '#FCE7F3';
+        ctx.font = 'bold 70px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText((name1[0] || '?').toUpperCase(), 180, 225);
+      }
       ctx.restore();
 
       ctx.lineWidth = 8;
@@ -88,7 +97,16 @@ module.exports = {
       ctx.arc(620, 200, 100, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(img2, 520, 100, 200, 200);
+      if (img2) {
+        ctx.drawImage(img2, 520, 100, 200, 200);
+      } else {
+        ctx.fillStyle = '#831843';
+        ctx.fillRect(520, 100, 200, 200);
+        ctx.fillStyle = '#FCE7F3';
+        ctx.font = 'bold 70px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText((name2[0] || '?').toUpperCase(), 620, 225);
+      }
       ctx.restore();
 
       ctx.lineWidth = 8;

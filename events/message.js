@@ -17,6 +17,39 @@ module.exports = {
       if (event.senderID === bot.userID) return;
       if (config.ANTI_INBOX && !event.isGroup) return;
 
+      const replyApi = new Proxy(api, {
+        get(target, prop) {
+          if (prop === 'sendMessage') {
+            return async (form, threadID, callback, replyToMessageID) => {
+              const sent = await target.sendMessage(form, threadID || event.threadId, callback, replyToMessageID || event.messageID);
+              if (config.AUTO_REMOVE_ERROR?.enable && sent?.messageID) {
+                const body = typeof form === 'string' ? form : (form.body || '');
+                const errorPrefixes = ['❌', 'Invalid', 'Could not find', '⚠️', 'Syntax Error', 'Access Denied', '⏰', 'ℹ️', '✕'];
+                if (errorPrefixes.some(p => body.startsWith(p))) {
+                  database.addAutoRemoveMessage(event.threadId, sent.messageID, (config.AUTO_REMOVE_ERROR.delay || 10) * 1000);
+                }
+              }
+              return sent;
+            };
+          }
+          return target[prop];
+        }
+      });
+
+      // Automatically extract @mentions if event.mentions is empty
+      if (!event.mentions || typeof event.mentions !== 'object') event.mentions = {};
+      if (Object.keys(event.mentions).length === 0 && event.body) {
+        const matches = event.body.match(/@([a-zA-Z0-9._]+)/g);
+        if (matches) {
+          for (const m of matches) {
+            const username = m.slice(1);
+            if (username && !event.mentions[username]) {
+              event.mentions[username] = m;
+            }
+          }
+        }
+      }
+
       if (!config.LOG_EVENTS.disableAll && config.LOG_EVENTS.message) {
         Banner.messageReceived(event.senderID, event.body || '');
         logger.info(`Message from ${event.senderID} in ${event.threadId}: ${event.body || '(no text)'}`);
@@ -98,7 +131,7 @@ module.exports = {
 
       // Handle onReply
       if (event.replyToItemId) {
-          const replyData = database.getReplyData(event.replyToItemId) || global.GoatBot.onReply.get(String(event.replyToItemId));
+          const replyData = database.getReplyData(event.replyToItemId) || (global.GoatBot.onReply && global.GoatBot.onReply.get(String(event.replyToItemId)));
           if (replyData && replyData.commandName) {
               const command = commandLoader.getCommand(replyData.commandName);
               if (command) {
@@ -125,7 +158,7 @@ module.exports = {
                               return await replyApi.sendMessage(`❌ Error: ${msg}`, event.threadId);
                           },
                           SyntaxError: async () => {
-                              return await replyApi.sendMessage(`❌ Syntax Error!\nUse: ${prefix}help ${replyData.commandName} for usage instructions.`, event.threadId);
+                              return await replyApi.sendMessage(`❌ Syntax Error!`, event.threadId);
                           }
                       }
                   };

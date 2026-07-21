@@ -14,10 +14,10 @@ module.exports = {
     usage: 'slap @user or reply to a message'
   },
 
-  onStart: async function ({ api, event, message, usersData }) {
+  onStart: async function ({ api, event, args, message, usersData }) {
     const mentions = Object.keys(event.mentions || {});
     let user1 = event.senderID;
-    let user2 = mentions[0] || (event.messageReply ? event.messageReply.senderID : null);
+    let user2 = mentions[0] || (event.messageReply ? event.messageReply.senderID : (args[0] ? args[0].replace(/^@+/, '') : null));
 
     if (!user2 || user1 === user2) {
       return message.reply('❌ Please mention or reply to someone to slap!\nExample: !slap @user');
@@ -29,23 +29,23 @@ module.exports = {
       const name1 = await usersData.getName(user1);
       const name2 = await usersData.getName(user2);
 
-      const userInfo1 = (await api.getUserInfo(user1).catch(() => ({})))[user1] || {};
-      const userInfo2 = (await api.getUserInfo(user2).catch(() => ({})))[user2] || {};
+      let img1 = null, img2 = null;
 
-      const url1 = userInfo1.profilePicUrlHd || userInfo1.hdProfilePicUrlInfo?.url || userInfo1.profile_pic_url_hd || userInfo1.profilePicUrl;
-      const url2 = userInfo2.profilePicUrlHd || userInfo2.hdProfilePicUrlInfo?.url || userInfo2.profile_pic_url_hd || userInfo2.profilePicUrl;
+      try {
+        const u1 = await api.getAvatarUrl(user1);
+        if (u1 && u1.startsWith('http')) {
+          const res1 = await axios.get(u1, { responseType: 'arraybuffer', timeout: 10000 });
+          img1 = await loadImage(Buffer.from(res1.data));
+        }
+      } catch (_) {}
 
-      if (!url1 || !url2) throw new Error('Could not retrieve profile pictures.');
-
-      const [res1, res2] = await Promise.all([
-        axios.get(url1, { responseType: 'arraybuffer', timeout: 10000 }),
-        axios.get(url2, { responseType: 'arraybuffer', timeout: 10000 })
-      ]);
-
-      const [img1, img2] = await Promise.all([
-        loadImage(Buffer.from(res1.data)),
-        loadImage(Buffer.from(res2.data))
-      ]);
+      try {
+        const u2 = await api.getAvatarUrl(user2);
+        if (u2 && u2.startsWith('http')) {
+          const res2 = await axios.get(u2, { responseType: 'arraybuffer', timeout: 10000 });
+          img2 = await loadImage(Buffer.from(res2.data));
+        }
+      } catch (_) {}
 
       const canvas = createCanvas(700, 400);
       const ctx = canvas.getContext('2d');
@@ -60,7 +60,16 @@ module.exports = {
       ctx.arc(200, 160, 90, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(img1, 110, 70, 180, 180);
+      if (img1) {
+        ctx.drawImage(img1, 110, 70, 180, 180);
+      } else {
+        ctx.fillStyle = '#1E3A8A';
+        ctx.fillRect(110, 70, 180, 180);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 60px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText((name1[0] || '?').toUpperCase(), 200, 180);
+      }
       ctx.restore();
 
       ctx.lineWidth = 8;
@@ -75,7 +84,16 @@ module.exports = {
       ctx.arc(500, 200, 80, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(img2, 420, 120, 160, 160);
+      if (img2) {
+        ctx.drawImage(img2, 420, 120, 160, 160);
+      } else {
+        ctx.fillStyle = '#DC2626';
+        ctx.fillRect(420, 120, 160, 160);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 50px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText((name2[0] || '?').toUpperCase(), 500, 220);
+      }
       ctx.restore();
 
       ctx.lineWidth = 8;

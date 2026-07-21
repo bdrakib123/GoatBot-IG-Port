@@ -568,6 +568,34 @@ class InstagramBot {
         this._logActivity(`Message from ${userName} in ${threadName}: "${preview}"`);
       }
 
+      let normalizedReply = null;
+      if (event.messageReply) {
+        const r = event.messageReply;
+        const rSender = r.senderID || r.senderId || r.user_id || r.userId || r.author;
+        const rMsgId = r.messageID || r.messageId || r.item_id || r.itemId || event.replyTo;
+        normalizedReply = {
+          ...r,
+          senderID: rSender,
+          senderId: rSender,
+          messageID: rMsgId,
+          messageId: rMsgId,
+          item_id: rMsgId,
+          body: r.body || r.text || '',
+          attachments: r.attachments || []
+        };
+      } else if (event.replyTo) {
+        normalizedReply = {
+          messageID: event.replyTo,
+          messageId: event.replyTo,
+          item_id: event.replyTo,
+          senderID: null,
+          senderId: null,
+          body: '',
+          attachments: []
+        };
+      }
+
+      const isReply = !!normalizedReply;
       const normalizedEvent = {
         threadID,
         threadId: threadID,
@@ -577,12 +605,13 @@ class InstagramBot {
         senderId: senderID,
         body:           event.body           || '',
         timestamp:      timestamp            || Date.now(),
-        type:           event.type           || 'message',
+        type:           isReply ? 'message_reply' : (event.type || 'message'),
         attachments:    event.attachments    || [],
         isVoiceMessage: event.isVoiceMessage || false,
         isGroup:        event.isGroup        || false,
-        replyToItemId:  event.replyTo || (event.messageReply ? event.messageReply.messageID : null),
-        messageReply:   event.messageReply   || null
+        mentions:       event.mentions       || {},
+        replyToItemId:  event.replyTo || (normalizedReply ? normalizedReply.messageID : null),
+        messageReply:   normalizedReply
       };
 
       await this.eventLoader.handleEvent('message', normalizedEvent);
@@ -756,7 +785,15 @@ class InstagramBot {
                   if (typeof item === 'string' && item.startsWith('http')) {
                       try {
                           const stream = await utils.getStreamFromURL(item);
-                          const ext = utils.getExtFromMimeType(stream.headers?.['content-type']) || 'png';
+                          const headerType = (stream.headers?.['content-type'] || '').split(';')[0].trim().toLowerCase();
+                          let ext = utils.getExtFromMimeType(headerType);
+                          if (!ext || ext === 'unknown') {
+                              if (headerType.startsWith('video/')) ext = 'mp4';
+                              else if (headerType.startsWith('audio/')) ext = 'mp3';
+                              else if (item.toLowerCase().includes('.mp4')) ext = 'mp4';
+                              else if (item.toLowerCase().includes('.mp3')) ext = 'mp3';
+                              else ext = 'png';
+                          }
                           const tempPath = path.join(process.cwd(), 'temp', `media_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`);
                           await fs.ensureDir(path.dirname(tempPath));
                           const writer = fs.createWriteStream(tempPath);
@@ -773,7 +810,9 @@ class InstagramBot {
                   }
                   // Handle Streams and Buffers
                   else if (item && (item.readable || item.pipe || Buffer.isBuffer(item))) {
-                      const ext = item.filename ? path.extname(item.filename) : (item.name ? path.extname(item.name) : (item.path ? path.extname(item.path) : ''));
+                      let rawExt = item.filename ? path.extname(item.filename) : (item.name ? path.extname(item.name) : (item.path ? path.extname(item.path) : ''));
+                      if (!rawExt) rawExt = '.png';
+                      const ext = rawExt.startsWith('.') ? rawExt : `.${rawExt}`;
                       const tempPath = path.join(process.cwd(), 'temp', `media_${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`);
                       await fs.ensureDir(path.dirname(tempPath));
 
@@ -996,25 +1035,41 @@ class InstagramBot {
 
       getUserInfo: async (userID) => {
         try {
-          // If userID is array
+          const fetchSingle = async (id) => {
+            if (!id) return {};
+            const clean = String(id).replace(/^@+/, '').trim();
+            let info = null;
+            if (/^\d+$/.test(clean)) {
+              info = await ig.getUserInfo(clean).catch(() => null);
+            } else {
+              info = await ig.getUserInfoByUsername(clean).catch(() => null);
+            }
+            return info || {};
+          };
+
           if (Array.isArray(userID)) {
-              const res = {};
-              for (const id of userID) {
-                  res[id] = await ig.getUserInfo(id);
-              }
-              return res;
+            const res = {};
+            for (const id of userID) {
+              res[id] = await fetchSingle(id);
+            }
+            return res;
           }
-          const info = await ig.getUserInfo(userID);
-          return { [userID]: info };
+          const info = await fetchSingle(userID);
+          const resMap = { [userID]: info };
+          if (info && typeof info === 'object') {
+            Object.assign(resMap, info);
+          }
+          return resMap;
         } catch (error) {
           logger.error('Failed to get user info', { error: error.message, userID });
-          throw error;
+          return { [userID]: {} };
         }
       },
 
       getUserInfoByUsername: async (username) => {
         try {
-          return await ig.getUserInfoByUsername(username);
+          const clean = String(username).replace(/^@+/, '').trim();
+          return await ig.getUserInfoByUsername(clean);
         } catch (error) {
           logger.error('Failed to get user info by username', { error: error.message, username });
           throw error;
@@ -1163,8 +1218,34 @@ class InstagramBot {
 
       getAvatarUrl: async (userID) => {
           try {
-              const info = await ig.getUserInfo(userID);
-              return info?.profilePicUrlHd || info?.hdProfilePicUrlInfo?.url || info?.profile_pic_url_hd || info?.profilePicUrl || `https://www.instagram.com/p/avatar/${userID}`;
+              if (!userID) return null;
+              if (typeof userID === 'string' && userID.startsWith('http')) return userID;
+
+              const db = require('../utils/database');
+              const cleanInput = String(userID).replace(/^@+/, '').trim();
+
+              const dbUser = db.getUser(cleanInput) || db.getUser(userID);
+              if (dbUser && dbUser.avatarUrl && dbUser.avatarUrl.startsWith('http')) {
+                  return dbUser.avatarUrl;
+              }
+
+              let info;
+              if (!/^\d+$/.test(cleanInput)) {
+                  info = await ig.getUserInfoByUsername(cleanInput).catch(() => null);
+              } else {
+                  info = await ig.getUserInfo(cleanInput).catch(() => null);
+              }
+
+              const url = info?.profilePicUrlHd || info?.hdProfilePicUrlInfo?.url || info?.profile_pic_url_hd || info?.profilePicUrl || info?.avatarUrl;
+              if (url && url.startsWith('http')) {
+                  if (dbUser) {
+                      dbUser.avatarUrl = url;
+                      db.updateUser(cleanInput, dbUser);
+                  }
+                  return url;
+              }
+
+              return `https://www.instagram.com/p/avatar/${cleanInput}`;
           } catch (e) {
               return `https://www.instagram.com/p/avatar/${userID}`;
           }

@@ -16,10 +16,10 @@ module.exports = {
     const input = args.join(' ');
     let uid;
 
-    if (event.type === 'message_reply') {
+    if (event.messageReply && event.messageReply.senderID) {
       uid = event.messageReply.senderID;
     } else {
-      uid = Object.keys(event.mentions)[0] || event.senderID;
+      uid = Object.keys(event.mentions || {})[0] || event.senderID;
     }
 
     const userName = await usersData.getName(uid);

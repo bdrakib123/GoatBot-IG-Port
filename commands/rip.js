@@ -14,21 +14,21 @@ module.exports = {
     usage: 'rip @user or reply to a message'
   },
 
-  onStart: async function ({ api, event, message, usersData }) {
-    let targetID = Object.keys(event.mentions || {})[0] || (event.messageReply ? event.messageReply.senderID : event.senderID);
+  onStart: async function ({ api, event, args, message, usersData }) {
+    let targetID = Object.keys(event.mentions || {})[0] || (event.messageReply ? event.messageReply.senderID : (args[0] ? args[0].replace(/^@+/, '') : event.senderID));
 
     api.setMessageReaction('🪦', event.messageID, () => {}, true);
 
     try {
       const rawName = await usersData.getName(targetID);
-      const userInfoMap = await api.getUserInfo(targetID).catch(() => ({}));
-      const userInfo = userInfoMap[targetID] || {};
-      const photoUrl = userInfo.profilePicUrlHd || userInfo.hdProfilePicUrlInfo?.url || userInfo.profile_pic_url_hd || userInfo.profilePicUrl;
-
-      if (!photoUrl) throw new Error('Could not retrieve user profile picture.');
-
-      const res = await axios.get(photoUrl, { responseType: 'arraybuffer', timeout: 10000 });
-      const avatar = await loadImage(Buffer.from(res.data));
+      let avatar = null;
+      try {
+        const photoUrl = await api.getAvatarUrl(targetID);
+        if (photoUrl && photoUrl.startsWith('http')) {
+          const res = await axios.get(photoUrl, { responseType: 'arraybuffer', timeout: 10000 });
+          avatar = await loadImage(Buffer.from(res.data));
+        }
+      } catch (_) {}
 
       const width = 600;
       const height = 750;
@@ -66,7 +66,15 @@ module.exports = {
       ctx.arc(300, 310, 90, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(avatar, 210, 220, 180, 180);
+      if (avatar) {
+        ctx.drawImage(avatar, 210, 220, 180, 180);
+      } else {
+        ctx.fillStyle = '#27272A';
+        ctx.fillRect(210, 220, 180, 180);
+        ctx.fillStyle = '#A1A1AA';
+        ctx.font = 'bold 70px serif';
+        ctx.fillText((rawName[0] || '?').toUpperCase(), 300, 335);
+      }
       ctx.restore();
 
       ctx.lineWidth = 6;

@@ -14,7 +14,7 @@ module.exports = {
     usage: 'couple | couple @user | couple @user1 @user2'
   },
 
-  onStart: async function ({ api, event, message, usersData, threadsData }) {
+  onStart: async function ({ api, event, args, message, usersData, threadsData }) {
     const threadID = event.threadId || event.threadID;
     const senderID = event.senderID;
     const mentions = Object.keys(event.mentions || {});
@@ -29,6 +29,11 @@ module.exports = {
       user2 = mentions[0];
     } else if (event.messageReply && event.messageReply.senderID) {
       user2 = event.messageReply.senderID;
+    } else if (args && args.length >= 2) {
+      user1 = args[0].replace(/^@+/, '');
+      user2 = args[1].replace(/^@+/, '');
+    } else if (args && args.length === 1) {
+      user2 = args[0].replace(/^@+/, '');
     } else {
       // Auto-select random active group members if no user specified
       try {
