@@ -27,7 +27,8 @@ module.exports = {
 
     try {
       const name = await usersData.getName(uid);
-      const userInfo = (await api.getUserInfo(uid))[uid];
+      const userInfoMap = await api.getUserInfo(uid).catch(() => ({}));
+      const userInfo = userInfoMap[uid] || {};
       const imageUrl = userInfo.profilePicUrlHd || userInfo.hdProfilePicUrlInfo?.url || userInfo.profile_pic_url_hd || userInfo.profilePicUrl;
 
       if (!imageUrl) throw new Error('Could not find profile picture');
