@@ -290,11 +290,21 @@ module.exports = {
           }
       });
       const user = database.getUser(event.senderID);
-      if (config.ADMIN_ONLY_ENABLE) {
-          const ignored = config.ADMIN_ONLY_IGNORE_COMMANDS.map(n => n.toLowerCase());
-          if (!ignored.includes(commandName) && PermissionManager.getUserRole(event.senderID) < 2) {
-              if (!config.HIDE_NOTI.adminOnly) await replyApi.sendMessage('🔒 Bot is in admin-only mode.', event.threadId);
-              return;
+      const threadData = database.getThreadData(event.threadId);
+      const isThreadAdminOnly = threadData?.settings?.adminOnly === true || threadData?.settings?.botOff === true;
+      const isGlobalAdminOnly = config.ADMIN_ONLY_ENABLE === true;
+
+      if (isThreadAdminOnly || isGlobalAdminOnly) {
+          const threadInfo = await bot.getThreadInfo(event.threadId).catch(() => null);
+          const hasAdminPerm = await PermissionManager.hasPermission(event.senderID, 2, threadInfo);
+          if (!hasAdminPerm) {
+              const ignored = (config.ADMIN_ONLY_IGNORE_COMMANDS || []).map(n => n.toLowerCase());
+              if (!ignored.includes(commandName)) {
+                  if (!config.HIDE_NOTI.adminOnly && !event.isGroup) {
+                      await replyApi.sendMessage('🔒 Bot is currently turned OFF for non-admins. Only bot admins can use commands.', event.threadId);
+                  }
+                  return;
+              }
           }
       }
 
