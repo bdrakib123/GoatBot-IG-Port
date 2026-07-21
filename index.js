@@ -16,7 +16,12 @@ const logger = require('./utils/logger');
 const InstagramBot = require('./bot/InstagramBot');
 
 process.on('unhandledRejection', (reason) => {
-  logger.error('Unhandled Rejection', { reason: reason?.message || String(reason) });
+  const msg = reason?.message || String(reason || '');
+  if (/Not authorized|login_required|checkpoint|Connection refused/i.test(msg)) {
+    // Known MQTT session expiration / disconnect error — handled by InstagramBot reconnect/auth flow
+    return;
+  }
+  logger.error('Unhandled Rejection', { reason: msg });
 });
 
 process.on('uncaughtException', (err) => {
