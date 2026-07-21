@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/banner.jpg" alt="GoatBot-IG Banner" width="100%" style="border-radius: 12px; margin-bottom: 20px;" />
+  <img src="assets/banner.jpg" alt="GoatBot-IG Anime Mascot Banner" width="100%" style="border-radius: 12px; margin-bottom: 20px;" />
 
   # 🐐 GoatBot Instagram Port (GoatBot-IG-Port)
   *Next-Generation High-Performance Instagram Chatbot Engine*
@@ -13,7 +13,11 @@
   ---
 </div>
 
-## 🌟 Overview
+## 🌟 Overview & Mascot Showcase
+
+<div align="center">
+  <img src="assets/anime-mascot.jpg" alt="GoatBot Anime Mascot Character" width="100%" style="border-radius: 12px; margin-bottom: 20px;" />
+</div>
 
 **GoatBot-IG-Port** is a modular, high-performance Instagram Direct Messenger bot ported directly from the legendary **GoatBot V2** architecture. Built with a bundled native **Instagram Chat API (ICA)** engine, it supports full 1:1 event lifecycle compatibility, advanced anti-ban safeguards, Rose-bot style group administration, AI conversational memory, and media processing.
 
