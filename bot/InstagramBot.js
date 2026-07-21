@@ -270,6 +270,51 @@ class InstagramBot {
         }
       }
 
+      // POST /api/action/save-db
+      if (route === '/action/save-db') {
+        try {
+          require('../utils/database').save();
+          return json({ success: true, message: 'Database saved to disk successfully' });
+        } catch (e) {
+          return json({ success: false, error: e.message });
+        }
+      }
+
+      // POST /api/action/restart-listener
+      if (route === '/action/restart-listener') {
+        try {
+          if (this.ig && typeof this.ig.stopListening === 'function') {
+            this.ig.stopListening();
+          }
+          setTimeout(() => {
+            if (this.isRunning) this.startListening();
+          }, 1000);
+          return json({ success: true, message: 'Message listener restart initiated' });
+        } catch (e) {
+          return json({ success: false, error: e.message });
+        }
+      }
+
+      // GET /api/debug
+      if (route === '/debug') {
+        const mem = process.memoryUsage();
+        return json({
+          nodeVersion: process.version,
+          platform: process.platform,
+          arch: process.arch,
+          pid: process.pid,
+          cwd: process.cwd(),
+          memory: mem,
+          uptime: Math.floor(process.uptime()),
+          commands: this.commandLoader.getAllCommandNames(),
+          events: this.eventLoader.getAllEventNames(),
+          activeOnReply: global.GoatBot.onReply ? global.GoatBot.onReply.size : 0,
+          activeOnReaction: global.GoatBot.onReaction ? global.GoatBot.onReaction.size : 0,
+          configPrefix: config.PREFIX,
+          noPrefix: config.NO_PREFIX
+        });
+      }
+
       res.writeHead(404); res.end('Not found');
     });
 
