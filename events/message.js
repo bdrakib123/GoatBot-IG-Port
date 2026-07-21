@@ -182,12 +182,15 @@ module.exports = {
       const noPrefixAllowed  = config.NO_PREFIX && PermissionManager.canUseNoPrefix(event.senderID);
 
       if (!startsWithPrefix) {
-        // AI Fallback for non-command chat & voice messages
-        if (config.AI_FALLBACK?.enable && (event.body || event.isVoiceMessage)) {
-          const aiCommandName = config.AI_FALLBACK.command || 'bby';
+        const tData = database.getThreadData(event.threadId);
+        const autoTalkEnabled = tData?.settings?.autotalk !== false;
+
+        // Auto-Talk & AI Fallback for non-command chat & voice messages
+        if ((config.AI_FALLBACK?.enable || autoTalkEnabled) && (event.body || event.isVoiceMessage) && autoTalkEnabled) {
+          const aiCommandName = config.AI_FALLBACK?.command || 'bby';
           const aiCommand = commandLoader.getCommand(aiCommandName);
           if (aiCommand) {
-            const aiText = event.body.trim() || 'Hello';
+            const aiText = (event.body || '').trim() || 'Hello';
             const aiArgs = aiText.split(/ +/);
             
             // If user sent a voice message, respond with voice note via Google TTS
