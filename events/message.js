@@ -300,10 +300,7 @@ module.exports = {
           if (!hasAdminPerm) {
               const ignored = (config.ADMIN_ONLY_IGNORE_COMMANDS || []).map(n => n.toLowerCase());
               if (!ignored.includes(commandName)) {
-                  if (!config.HIDE_NOTI.adminOnly && !event.isGroup) {
-                      await replyApi.sendMessage('🔒 Bot is currently turned OFF for non-admins. Only bot admins can use commands.', event.threadId);
-                  }
-                  return;
+                  return; // Silently ignore non-admins when bot is OFF (GoatBot V2 spec)
               }
           }
       }
