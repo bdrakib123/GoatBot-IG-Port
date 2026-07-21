@@ -17,21 +17,21 @@ module.exports = {
     const prompt = args.join(' ');
     if (!prompt) return message.reply('❌ | Please provide a prompt.\nExample: imggen A dragon flying over a castle');
 
-    message.reply('🧠 | Generating image, please wait...');
+    message.reply('🧠 | Generating image with AI, please wait...');
     api.setMessageReaction('⏳', event.messageID, () => {}, true);
 
     try {
-      const url = `https://www.arch2devs.ct.ws/api/imgen?prompt=${encodeURIComponent(prompt)}`;
+      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true&seed=${Date.now()}`;
 
       await message.reply({
-        body: `✅ | Prompt: ${prompt}`,
+        body: `✅ | Generated Image for: "${prompt}"`,
         attachment: url
       });
       api.setMessageReaction('✅', event.messageID, () => {}, true);
     } catch (err) {
       console.error('Imggen error:', err.message);
       api.setMessageReaction('❌', event.messageID, () => {}, true);
-      return message.reply('❌ | Failed to generate image. Try again later.');
+      return message.reply('❌ | Failed to generate image. Please try again.');
     }
   }
 };
