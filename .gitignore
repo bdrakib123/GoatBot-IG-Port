@@ -31,6 +31,7 @@ scripts/events/data/welcomeAttachment
 !scripts/events/tmp/.gitkeep
 
 storage/logs/
+storage/data/
 logs/
 *.audit.json
 bot.log
