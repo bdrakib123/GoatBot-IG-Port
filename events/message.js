@@ -135,7 +135,14 @@ module.exports = {
       // Handle onReply & tap-to-reply
       const replyMessageID = event.replyToItemId || (event.messageReply ? (event.messageReply.messageID || event.messageReply.messageId || event.messageReply.item_id) : null);
       if (replyMessageID) {
-          const replyData = database.getReplyData(replyMessageID) || (global.GoatBot.onReply && global.GoatBot.onReply.get(String(replyMessageID)));
+          let replyData = database.getReplyData(replyMessageID) || (global.GoatBot.onReply && global.GoatBot.onReply.get(String(replyMessageID)));
+          
+          // Tap-to-reply fallback: if replying directly to a bot message, route to bby command
+          const isReplyToBot = event.messageReply && botIDStr && String(event.messageReply.senderID || event.messageReply.senderId) === String(botIDStr);
+          if (!replyData && isReplyToBot) {
+              replyData = { commandName: 'bby', messageID: replyMessageID };
+          }
+
           if (replyData && replyData.commandName) {
               const command = commandLoader.getCommand(replyData.commandName);
               if (command) {

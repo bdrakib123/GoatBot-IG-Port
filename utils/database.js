@@ -441,9 +441,31 @@ class Database {
   findLearnedPair(text) {
     if (!this.data.learnedPairs || this.data.learnedPairs.length === 0) return null;
     const cleanText = String(text).toLowerCase().trim();
+    if (!cleanText) return null;
+
+    // 1. Exact match
     const exact = this.data.learnedPairs.find(p => p.ask === cleanText);
     if (exact && exact.reply.toLowerCase().trim() !== cleanText) return exact.reply;
+
+    // 2. Fuzzy / Keyword match
+    const words = cleanText.split(/\s+/).filter(w => w.length > 2);
+    if (words.length > 0) {
+      const match = this.data.learnedPairs.find(p => {
+        const askLower = p.ask.toLowerCase();
+        if (askLower === cleanText || askLower.trim() === cleanText) return false;
+        const matchCount = words.filter(w => askLower.includes(w)).length;
+        return (matchCount >= Math.ceil(words.length * 0.5)) && (p.reply.toLowerCase().trim() !== cleanText);
+      });
+      if (match) return match.reply;
+    }
+
     return null;
+  }
+
+  getRandomLearnedReply() {
+    if (!this.data.learnedPairs || this.data.learnedPairs.length === 0) return null;
+    const randomIndex = Math.floor(Math.random() * this.data.learnedPairs.length);
+    return this.data.learnedPairs[randomIndex]?.reply || null;
   }
 }
 
