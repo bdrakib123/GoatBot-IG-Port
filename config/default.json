@@ -5,8 +5,8 @@
     "2FASecret": "",
     "i_user": "",
     "proxy": null,
-    "userAgent": "Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
-    "intervalGetNewCookie": 1440
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "intervalGetNewCookie": 720
   },
   "antiInbox": false,
   "language": "en",
@@ -42,7 +42,7 @@
     "autoSyncWhenStart": false,
     "autoRefreshThreadInfoFirstTime": true
   },
-  "messageDelayMs": 100,
+  "messageDelayMs": 200,
   "timeZone": "Asia/Dhaka",
   "dashBoard": {
     "enable": true,
@@ -59,7 +59,7 @@
     }
   },
   "spamProtection": {
-    "commandThreshold": 8,
+    "commandThreshold": 5,
     "timeWindow": 10,
     "banDuration": 24
   },
@@ -122,7 +122,7 @@
   },
   "humanDelay": {
     "min": 1500,
-    "max": 4000
+    "max": 3500
   },
   "logging": {
     "logLevel": "info",
@@ -145,11 +145,11 @@
     "autoReconnect": true,
     "forceLogin": true,
     "simulateTyping": true,
-    "randomUserAgent": false,
+    "randomUserAgent": true,
     "persona": "desktop",
     "stealthMode": true,
-    "maxConcurrentRequests": 5,
-    "maxRequestsPerMinute": 50,
+    "maxConcurrentRequests": 3,
+    "maxRequestsPerMinute": 30,
     "requestCooldownMs": 60000,
     "errorCacheTtlMs": 300000
   },
