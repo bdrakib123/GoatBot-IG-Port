@@ -63,7 +63,7 @@
     flex-direction: column;
     align-items: center;
     padding: 24px 0;
-    z-index: 10;
+    z-index: 100;
     flex-shrink: 0;
   }
 
@@ -265,6 +265,13 @@
     flex: 1;
   }
 
+  .view-section {
+    display: none;
+  }
+  .view-section.active {
+    display: block;
+  }
+
   /* Top 4 Neon Cards Grid */
   .grid-top-cards {
     display: grid;
@@ -362,6 +369,12 @@
     gap: 20px;
   }
 
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
   .section-card {
     background: var(--card-bg);
     border: 1px solid var(--border-dim);
@@ -392,6 +405,56 @@
     cursor: pointer;
     font-size: 18px;
     padding: 4px 8px;
+  }
+
+  /* Filter & Search Bar */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    background: rgba(15, 20, 32, 0.7);
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border-dim);
+  }
+
+  .input-search {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-dim);
+    color: var(--text-main);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    outline: none;
+    flex: 1;
+  }
+  .input-search:focus { border-color: var(--neon-purple); }
+
+  .select-filter {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-dim);
+    color: var(--text-main);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .btn-action {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border-dim);
+    color: var(--text-main);
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .btn-action:hover, .btn-action:active {
+    background: rgba(255, 255, 255, 0.12);
   }
 
   /* Column 1: Real-Time Logs */
@@ -563,6 +626,19 @@
     margin-top: 4px;
   }
 
+  /* Diagnostic Code Block */
+  .tree-code {
+    background: #04060a;
+    padding: 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border-dim);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--neon-cyan);
+    overflow-x: auto;
+    white-space: pre-wrap;
+  }
+
   /* Responsive Touch Layout for Mobile/Tablets */
   @media (max-width: 900px) {
     body {
@@ -599,7 +675,7 @@
     .grid-top-cards {
       grid-template-columns: repeat(2, 1fr);
     }
-    .grid-main-columns {
+    .grid-main-columns, .grid-3 {
       grid-template-columns: 1fr;
     }
     header {
@@ -670,146 +746,185 @@
     <!-- Content Area -->
     <div class="content">
 
-      <!-- Top 4 Neon Metric Cards -->
-      <div class="grid-top-cards">
-        
-        <!-- Card 1 -->
-        <div class="neon-card" id="card-total-users">
-          <div class="card-top">
-            <span class="card-label">TOTAL USERS</span>
-            <div class="card-icon-badge">👥</div>
+      <!-- SECTION 1: OVERVIEW -->
+      <div class="view-section active" id="view-overview">
+        <!-- Top 4 Neon Metric Cards -->
+        <div class="grid-top-cards">
+          
+          <div class="neon-card" id="card-total-users">
+            <div class="card-top">
+              <span class="card-label">TOTAL USERS</span>
+              <div class="card-icon-badge">👥</div>
+            </div>
+            <div class="card-val" id="val-total-users">0</div>
+            <div class="card-bottom-sub">
+              ↑ +2.4% <span style="color:var(--text-dim); margin-left:4px;">active growth</span>
+            </div>
+            <svg class="sparkline-svg" viewBox="0 0 100 25" preserveAspectRatio="none">
+              <path d="M0,20 Q25,5 50,15 T100,5" fill="none" stroke="var(--neon-cyan)" stroke-width="2"/>
+            </svg>
           </div>
-          <div class="card-val" id="val-total-users">0</div>
-          <div class="card-bottom-sub">
-            ↑ +2.4% <span style="color:var(--text-dim); margin-left:4px;">active growth</span>
+
+          <div class="neon-card cyan-border" id="card-system-health">
+            <div class="card-top">
+              <span class="card-label">HEALTH & UPTIME</span>
+              <div class="card-icon-badge">📈</div>
+            </div>
+            <div class="card-val" id="val-uptime">0s</div>
+            <div class="card-bottom-sub">
+              ↑ 99.9% <span style="color:var(--text-dim); margin-left:4px;">system stability</span>
+            </div>
           </div>
-          <svg class="sparkline-svg" viewBox="0 0 100 25" preserveAspectRatio="none">
-            <path d="M0,20 Q25,5 50,15 T100,5" fill="none" stroke="var(--neon-cyan)" stroke-width="2"/>
-          </svg>
+
+          <div class="neon-card" id="card-commands">
+            <div class="card-top">
+              <span class="card-label">COMMANDS LOADED</span>
+              <div class="card-icon-badge">⚡</div>
+            </div>
+            <div class="card-val" id="val-cmd-count">92</div>
+            <div class="card-bottom-sub dim">
+              last 24h: <span id="val-events-count">7 Events</span>
+            </div>
+          </div>
+
+          <div class="neon-card cyan-border" id="card-messages">
+            <div class="card-top">
+              <span class="card-label">MESSAGES PROCESSED</span>
+              <div class="card-icon-badge">💬</div>
+            </div>
+            <div class="card-val" id="val-processed-count">4,921</div>
+            <div class="card-bottom-sub dim">
+              last 24h: <span id="val-processed-24h">115</span>
+            </div>
+          </div>
+
         </div>
 
-        <!-- Card 2 -->
-        <div class="neon-card cyan-border" id="card-system-health">
-          <div class="card-top">
-            <span class="card-label">HEALTH & UPTIME</span>
-            <div class="card-icon-badge">📈</div>
-          </div>
-          <div class="card-val" id="val-uptime">0s</div>
-          <div class="card-bottom-sub">
-            ↑ 99.9% <span style="color:var(--text-dim); margin-left:4px;">system stability</span>
-          </div>
-        </div>
+        <!-- Main 3 Columns Section -->
+        <div class="grid-main-columns">
 
-        <!-- Card 3 -->
-        <div class="neon-card" id="card-commands">
-          <div class="card-top">
-            <span class="card-label">COMMANDS LOADED</span>
-            <div class="card-icon-badge">⚡</div>
+          <div class="section-card" id="col-command-logs">
+            <div class="section-header">
+              <span class="section-title">REAL-TIME COMMAND LOGS</span>
+              <span class="dots-menu" id="btn-menu-logs">•••</span>
+            </div>
+            <div class="logs-list" id="container-command-logs"></div>
+            <div class="logs-footer">Auto-scrollable log stream</div>
           </div>
-          <div class="card-val" id="val-cmd-count">92</div>
-          <div class="card-bottom-sub dim">
-            last 24h: <span id="val-events-count">7 Events</span>
-          </div>
-        </div>
 
-        <!-- Card 4 -->
-        <div class="neon-card cyan-border" id="card-messages">
-          <div class="card-top">
-            <span class="card-label">MESSAGES PROCESSED</span>
-            <div class="card-icon-badge">💬</div>
+          <div class="section-card" id="col-active-sessions">
+            <div class="section-header">
+              <span class="section-title">ACTIVE SESSIONS & THREADS</span>
+              <span class="dots-menu" id="btn-menu-sessions">•••</span>
+            </div>
+            <div class="sessions-list" id="container-active-sessions"></div>
           </div>
-          <div class="card-val" id="val-processed-count">4,921</div>
-          <div class="card-bottom-sub dim">
-            last 24h: <span id="val-processed-24h">115</span>
-          </div>
-        </div>
 
+          <div class="section-card" id="col-system-performance">
+            <div class="section-header">
+              <span class="section-title">SYSTEM PERFORMANCE</span>
+              <span class="dots-menu" id="btn-menu-perf">•••</span>
+            </div>
+
+            <div class="perf-metric-block">
+              <div class="perf-header">
+                <span class="perf-label">CPU USAGE</span>
+                <span class="perf-val" id="val-cpu-pct">48%</span>
+              </div>
+              <div class="graph-container">
+                <svg width="100%" height="100%" viewBox="0 0 200 90" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="gradPurple" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="var(--neon-purple)" stop-opacity="0.6"/>
+                      <stop offset="100%" stop-color="var(--neon-purple)" stop-opacity="0.0"/>
+                    </linearGradient>
+                  </defs>
+                  <path d="M0,70 Q30,20 60,50 T120,30 T180,60 T200,40 L200,90 L0,90 Z" fill="url(#gradPurple)"/>
+                  <path d="M0,70 Q30,20 60,50 T120,30 T180,60 T200,40" fill="none" stroke="var(--neon-purple)" stroke-width="2"/>
+                </svg>
+              </div>
+              <div class="graph-footer">
+                <span>10 minute</span>
+                <span>history</span>
+              </div>
+            </div>
+
+            <div class="perf-metric-block">
+              <div class="perf-header">
+                <span class="perf-label">RAM USAGE</span>
+                <span class="perf-val cyan" id="val-ram-usage">128MB / 512MB</span>
+              </div>
+              <div class="graph-container">
+                <svg width="100%" height="100%" viewBox="0 0 200 90" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="gradCyan" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="var(--neon-cyan)" stop-opacity="0.6"/>
+                      <stop offset="100%" stop-color="var(--neon-cyan)" stop-opacity="0.0"/>
+                    </linearGradient>
+                  </defs>
+                  <path d="M0,60 Q40,40 80,70 T140,50 T200,65 L200,90 L0,90 Z" fill="url(#gradCyan)"/>
+                  <path d="M0,60 Q40,40 80,70 T140,50 T200,65" fill="none" stroke="var(--neon-cyan)" stroke-width="2"/>
+                </svg>
+              </div>
+              <div class="graph-footer">
+                <span>10 minute</span>
+                <span>History</span>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
       </div>
 
-      <!-- Main 3 Columns Section -->
-      <div class="grid-main-columns">
-
-        <!-- Column 1: Real-Time Command Logs -->
-        <div class="section-card" id="col-command-logs">
-          <div class="section-header">
-            <span class="section-title">REAL-TIME COMMAND LOGS</span>
-            <span class="dots-menu" id="btn-menu-logs">•••</span>
-          </div>
-
-          <div class="logs-list" id="container-command-logs">
-            <!-- Dynamically populated -->
-          </div>
-
-          <div class="logs-footer">Auto-scrollable log stream</div>
+      <!-- SECTION 2: SESSIONS & THREADS -->
+      <div class="view-section" id="view-sessions">
+        <div class="filter-bar">
+          <input type="text" class="input-search" id="input-search-sessions" placeholder="Search active threads by name or ID..." onkeyup="renderSessionsFull()">
+          <button class="btn-action" id="btn-refresh-sessions-tab">🔄 Refresh Inbox</button>
         </div>
+        <div class="grid-3" id="container-sessions-full-grid"></div>
+      </div>
 
-        <!-- Column 2: Active Sessions -->
-        <div class="section-card" id="col-active-sessions">
-          <div class="section-header">
-            <span class="section-title">ACTIVE SESSIONS & THREADS</span>
-            <span class="dots-menu" id="btn-menu-sessions">•••</span>
-          </div>
-
-          <div class="sessions-list" id="container-active-sessions">
-            <!-- Dynamically populated -->
-          </div>
+      <!-- SECTION 3: COMMANDS CATALOG -->
+      <div class="view-section" id="view-commands">
+        <div class="filter-bar">
+          <input type="text" class="input-search" id="input-search-cmds" placeholder="Search commands catalog..." onkeyup="renderCommandsFull()">
+          <select class="select-filter" id="select-cmd-cat" onchange="renderCommandsFull()">
+            <option value="ALL">All Categories</option>
+            <option value="ai">AI & Intelligence</option>
+            <option value="media">Media & Downloaders</option>
+            <option value="utility">Utility & Tools</option>
+            <option value="fun">Fun & Games</option>
+          </select>
         </div>
+        <div class="grid-3" id="container-commands-full-grid"></div>
+      </div>
 
-        <!-- Column 3: System Performance Graphs -->
-        <div class="section-card" id="col-system-performance">
-          <div class="section-header">
-            <span class="section-title">SYSTEM PERFORMANCE</span>
-            <span class="dots-menu" id="btn-menu-perf">•••</span>
-          </div>
-
-          <div class="perf-metric-block">
-            <div class="perf-header">
-              <span class="perf-label">CPU USAGE</span>
-              <span class="perf-val" id="val-cpu-pct">48%</span>
-            </div>
-            <div class="graph-container">
-              <svg width="100%" height="100%" viewBox="0 0 200 90" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="gradPurple" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="var(--neon-purple)" stop-opacity="0.6"/>
-                    <stop offset="100%" stop-color="var(--neon-purple)" stop-opacity="0.0"/>
-                  </linearGradient>
-                </defs>
-                <path d="M0,70 Q30,20 60,50 T120,30 T180,60 T200,40 L200,90 L0,90 Z" fill="url(#gradPurple)"/>
-                <path d="M0,70 Q30,20 60,50 T120,30 T180,60 T200,40" fill="none" stroke="var(--neon-purple)" stroke-width="2"/>
-              </svg>
-            </div>
-            <div class="graph-footer">
-              <span>10 minute</span>
-              <span>history</span>
-            </div>
-          </div>
-
-          <div class="perf-metric-block">
-            <div class="perf-header">
-              <span class="perf-label">RAM USAGE</span>
-              <span class="perf-val cyan" id="val-ram-usage">128MB / 512MB</span>
-            </div>
-            <div class="graph-container">
-              <svg width="100%" height="100%" viewBox="0 0 200 90" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="gradCyan" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="var(--neon-cyan)" stop-opacity="0.6"/>
-                    <stop offset="100%" stop-color="var(--neon-cyan)" stop-opacity="0.0"/>
-                  </linearGradient>
-                </defs>
-                <path d="M0,60 Q40,40 80,70 T140,50 T200,65 L200,90 L0,90 Z" fill="url(#gradCyan)"/>
-                <path d="M0,60 Q40,40 80,70 T140,50 T200,65" fill="none" stroke="var(--neon-cyan)" stroke-width="2"/>
-              </svg>
-            </div>
-            <div class="graph-footer">
-              <span>10 minute</span>
-              <span>History</span>
-            </div>
-          </div>
-
+      <!-- SECTION 4: CONSOLE LOGS -->
+      <div class="view-section" id="view-logs">
+        <div class="filter-bar">
+          <select class="select-filter" id="select-log-level" onchange="renderLogsFull()">
+            <option value="ALL">All Log Levels</option>
+            <option value="INFO">INFO</option>
+            <option value="WARN">WARN</option>
+            <option value="ERROR">ERROR</option>
+          </select>
+          <input type="text" class="input-search" id="input-search-logs" placeholder="Filter console log stream..." onkeyup="renderLogsFull()">
+          <button class="btn-action" id="btn-refresh-logs-tab">🔄 Refresh Logs</button>
         </div>
+        <div class="section-card" style="height:550px;">
+          <div class="logs-list" id="container-logs-full-stream"></div>
+        </div>
+      </div>
 
+      <!-- SECTION 5: DIAGNOSTICS -->
+      <div class="view-section" id="view-debug">
+        <div class="filter-bar" style="justify-content:space-between;">
+          <span style="font-weight:700;">🛠️ System Process Diagnostics Inspector</span>
+          <button class="btn-action" id="btn-refresh-debug-tab">🔄 Fetch Payload</button>
+        </div>
+        <div class="tree-code" id="code-debug-tree-full">Loading process diagnostics...</div>
       </div>
 
     </div>
@@ -819,10 +934,11 @@
     let state = {
       status: {},
       threads: [],
-      logs: []
+      commands: [],
+      logs: [],
+      debug: {}
     };
 
-    // Helper to add both touch and click handlers cleanly
     function addTouchClick(el, handler) {
       if (!el) return;
       let touched = false;
@@ -842,21 +958,34 @@
 
     function switchView(viewName) {
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.view-section').forEach(sec => {
+        sec.classList.remove('active');
+        sec.style.display = 'none';
+      });
+
       const activeNav = document.getElementById(`nav-btn-${viewName}`);
+      const activeSec = document.getElementById(`view-${viewName}`);
+
       if (activeNav) activeNav.classList.add('active');
+      if (activeSec) {
+        activeSec.classList.add('active');
+        activeSec.style.display = 'block';
+      }
 
       if (viewName === 'overview') {
-        fetchStatus();
-        fetchSessions();
-        fetchLogs();
+        fetchStatus(); fetchSessions(); fetchLogs();
       } else if (viewName === 'sessions') {
         fetchSessions();
+      } else if (viewName === 'commands') {
+        fetchCommands();
       } else if (viewName === 'logs') {
         fetchLogs();
+      } else if (viewName === 'debug') {
+        fetchDebug();
       }
     }
 
-    // Attach touch/click handlers to all nav buttons
+    // Attach handlers
     ['overview', 'sessions', 'commands', 'logs', 'debug'].forEach(name => {
       const btn = document.getElementById(`nav-btn-${name}`);
       addTouchClick(btn, () => switchView(name));
@@ -865,10 +994,11 @@
     addTouchClick(document.getElementById('nav-btn-exit'), () => triggerSaveDB());
     addTouchClick(document.getElementById('logo-btn-home'), () => switchView('overview'));
     addTouchClick(document.getElementById('btn-notification-bell'), () => {
-      fetchStatus();
-      fetchSessions();
-      fetchLogs();
+      fetchStatus(); fetchSessions(); fetchLogs();
     });
+    addTouchClick(document.getElementById('btn-refresh-sessions-tab'), () => fetchSessions());
+    addTouchClick(document.getElementById('btn-refresh-logs-tab'), () => fetchLogs());
+    addTouchClick(document.getElementById('btn-refresh-debug-tab'), () => fetchDebug());
 
     async function fetchStatus() {
       try {
@@ -897,11 +1027,12 @@
         const res = await fetch('/api/threads');
         const data = await res.json();
         state.threads = data.threads || [];
-        renderSessions();
+        renderSessionsOverview();
+        renderSessionsFull();
       } catch (e) {}
     }
 
-    function renderSessions() {
+    function renderSessionsOverview() {
       const container = document.getElementById('container-active-sessions');
       if (state.threads.length === 0) {
         container.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; padding:10px;">No active threads found.</div>';
@@ -923,16 +1054,78 @@
       `).join('');
     }
 
+    function renderSessionsFull() {
+      const container = document.getElementById('container-sessions-full-grid');
+      const query = (document.getElementById('input-search-sessions')?.value || '').toLowerCase();
+      const filtered = state.threads.filter(t => (t.name || '').toLowerCase().includes(query) || String(t.threadID).includes(query));
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted); padding:10px;">No matching active threads.</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map((t, i) => `
+        <div class="section-card" style="height:auto;" id="session-full-card-${i}">
+          <div class="session-header-row" style="margin-bottom:8px;">
+            <span class="session-username" style="font-size:1.1rem;">${escapeHtml(t.name)}</span>
+            <span class="active-badge">${t.isGroup ? 'GROUP' : 'DM'}</span>
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-dim); margin-bottom:10px;">Thread ID: ${t.threadID}</div>
+          <div style="font-size:0.85rem; color:var(--text-muted); font-style:italic;">"${t.snippet || 'No messages yet'}"</div>
+        </div>
+      `).join('');
+    }
+
+    async function fetchCommands() {
+      try {
+        const res = await fetch('/api/commands');
+        const data = await res.json();
+        state.commands = data.commands || [];
+        renderCommandsFull();
+      } catch (e) {}
+    }
+
+    function renderCommandsFull() {
+      const container = document.getElementById('container-commands-full-grid');
+      const query = (document.getElementById('input-search-cmds')?.value || '').toLowerCase();
+      const cat = document.getElementById('select-cmd-cat')?.value || 'ALL';
+
+      const filtered = state.commands.filter(c => {
+        const qMatch = c.name.toLowerCase().includes(query) || (c.description || '').toLowerCase().includes(query);
+        const cMatch = cat === 'ALL' || (c.category || '').toLowerCase() === cat.toLowerCase();
+        return qMatch && cMatch;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted); padding:10px;">No commands match filter.</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(c => `
+        <div class="section-card" style="height:auto;" id="cmd-card-${c.name}">
+          <div class="section-header">
+            <span class="section-title">⚡ ${c.name}</span>
+            <span class="active-badge">${c.category || 'general'}</span>
+          </div>
+          <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:10px;">${c.description || 'No description'}</div>
+          <div style="font-family:var(--font-mono); font-size:0.78rem; color:var(--neon-cyan); background:rgba(0,0,0,0.3); padding:6px 10px; border-radius:6px;">
+            Syntax: ${c.prefix}${c.usage || c.name}
+          </div>
+        </div>
+      `).join('');
+    }
+
     async function fetchLogs() {
       try {
         const res = await fetch('/api/logs');
         const data = await res.json();
         state.logs = data.logs || [];
-        renderLogs();
+        renderLogsOverview();
+        renderLogsFull();
       } catch (e) {}
     }
 
-    function renderLogs() {
+    function renderLogsOverview() {
       const container = document.getElementById('container-command-logs');
       if (state.logs.length === 0) {
         container.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; padding:10px;">No recent logs.</div>';
@@ -949,6 +1142,41 @@
           <div class="log-type-icon">💜</div>
         </div>
       `).join('');
+    }
+
+    function renderLogsFull() {
+      const container = document.getElementById('container-logs-full-stream');
+      const query = (document.getElementById('input-search-logs')?.value || '').toLowerCase();
+      const level = document.getElementById('select-log-level')?.value || 'ALL';
+
+      const filtered = state.logs.filter(l => {
+        const qMatch = (l.message || '').toLowerCase().includes(query);
+        const lMatch = level === 'ALL' || l.level === level;
+        return qMatch && lMatch;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted); padding:10px;">No logs match filter.</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map((l, i) => `
+        <div class="log-item" id="log-full-item-${i}">
+          <div class="log-time-action">
+            <span class="log-timestamp">[${l.time || '12:00'}] [${l.level || 'INFO'}]</span>
+            <span class="log-action-text">${escapeHtml(l.message)}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function fetchDebug() {
+      try {
+        const res = await fetch('/api/debug');
+        const data = await res.json();
+        state.debug = data;
+        document.getElementById('code-debug-tree-full').innerText = JSON.stringify(data, null, 2);
+      } catch (e) {}
     }
 
     async function triggerSaveDB() {
