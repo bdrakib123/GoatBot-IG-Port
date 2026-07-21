@@ -16,7 +16,7 @@ module.exports = {
 
   onStart: async function ({ event, message, api, args, usersData }) {
     let mentionID = Object.keys(event.mentions || {})[0] || (event.messageReply ? event.messageReply.senderID : event.senderID);
-    let frameStyle = (args.find(a => ['neon', 'gold', 'cyber', 'vip'].includes(a.toLowerCase())) || 'neon').toLowerCase();
+    let frameStyle = (args.find(a => ['neon', 'gold', 'cyber', 'vip', 'fire', 'rainbow', 'diamond', 'anime'].includes(a.toLowerCase())) || 'neon').toLowerCase();
 
     api.setMessageReaction('⏳', event.messageID, () => {}, true);
 
@@ -65,6 +65,29 @@ module.exports = {
         ctx.strokeStyle = '#EF4444';
         ctx.shadowColor = '#F87171';
         ctx.shadowBlur = 25;
+      } else if (frameStyle === 'fire') {
+        ctx.strokeStyle = '#F97316';
+        ctx.shadowColor = '#FF4500';
+        ctx.shadowBlur = 30;
+      } else if (frameStyle === 'diamond') {
+        ctx.strokeStyle = '#06B6D4';
+        ctx.shadowColor = '#67E8F9';
+        ctx.shadowBlur = 30;
+      } else if (frameStyle === 'rainbow') {
+        const gradient = ctx.createConicGradient(0, center, center);
+        gradient.addColorStop(0, '#Red');
+        gradient.addColorStop(0.2, '#Orange');
+        gradient.addColorStop(0.4, '#Yellow');
+        gradient.addColorStop(0.6, '#Green');
+        gradient.addColorStop(0.8, '#Blue');
+        gradient.addColorStop(1, '#Violet');
+        ctx.strokeStyle = gradient;
+        ctx.shadowColor = '#E0E7FF';
+        ctx.shadowBlur = 25;
+      } else if (frameStyle === 'anime') {
+        ctx.strokeStyle = '#EC4899';
+        ctx.shadowColor = '#F472B6';
+        ctx.shadowBlur = 30;
       } else {
         // Neon default
         ctx.strokeStyle = '#3B82F6';
@@ -76,12 +99,18 @@ module.exports = {
       ctx.arc(center, center, radius + 10, 0, Math.PI * 2);
       ctx.stroke();
 
+      // Draw Outer Accent Ring
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(center, center, radius + 25, 0, Math.PI * 2);
+      ctx.stroke();
+
       // Draw Badge Label
-      ctx.fillStyle = ctx.strokeStyle;
+      ctx.fillStyle = typeof ctx.strokeStyle === 'string' ? ctx.strokeStyle : '#3B82F6';
       ctx.shadowBlur = 10;
-      ctx.font = 'bold 28px sans-serif';
+      ctx.font = 'bold 26px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`✨ ${frameStyle.toUpperCase()} FRAME • ${rawName.toUpperCase()} ✨`, center, size - 40);
+      ctx.fillText(`✨ ${frameStyle.toUpperCase()} FRAME • ${rawName.toUpperCase()} ✨`, center, size - 35);
 
       const buffer = canvas.toBuffer('image/png');
       api.setMessageReaction('✅', event.messageID, () => {}, true);
