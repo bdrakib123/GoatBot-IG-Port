@@ -1,0 +1,99 @@
+const { createCanvas, loadImage } = require('canvas');
+const axios = require('axios');
+
+module.exports = {
+  config: {
+    name: 'pfpframe',
+    aliases: ['frame', 'avatarframe', 'pfpring'],
+    version: '1.0',
+    author: 'Jisan',
+    cooldown: 5,
+    role: 0,
+    category: 'Fun',
+    description: 'Fetch user PFP and overlay custom glowing neon / VIP / Gold canvas frames',
+    usage: 'pfpframe [@mention / reply] [neon|gold|cyber|vip]'
+  },
+
+  onStart: async function ({ event, message, api, args, usersData }) {
+    let mentionID = Object.keys(event.mentions || {})[0] || (event.messageReply ? event.messageReply.senderID : event.senderID);
+    let frameStyle = (args.find(a => ['neon', 'gold', 'cyber', 'vip'].includes(a.toLowerCase())) || 'neon').toLowerCase();
+
+    api.setMessageReaction('⏳', event.messageID, () => {}, true);
+
+    try {
+      const rawName = await usersData.getName(mentionID);
+      const userInfoMap = await api.getUserInfo(mentionID).catch(() => ({}));
+      const userInfo = userInfoMap[mentionID] || {};
+      const photoUrl = userInfo.profilePicUrlHd || userInfo.hdProfilePicUrlInfo?.url || userInfo.profile_pic_url_hd || userInfo.profilePicUrl;
+
+      if (!photoUrl) throw new Error('Could not retrieve user profile picture.');
+
+      const res = await axios.get(photoUrl, { responseType: 'arraybuffer', timeout: 10000 });
+      const avatar = await loadImage(Buffer.from(res.data));
+
+      const size = 600;
+      const canvas = createCanvas(size, size);
+      const ctx = canvas.getContext('2d');
+
+      // Background
+      ctx.fillStyle = '#0F172A';
+      ctx.fillRect(0, 0, size, size);
+
+      // Circular Avatar Clip
+      const center = size / 2;
+      const radius = 220;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(center, center, radius, 0, Math.PI * 2, true);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(avatar, center - radius, center - radius, radius * 2, radius * 2);
+      ctx.restore();
+
+      // Render Frame Overlay
+      ctx.lineWidth = 18;
+      if (frameStyle === 'gold') {
+        ctx.strokeStyle = '#F59E0B';
+        ctx.shadowColor = '#FBBF24';
+        ctx.shadowBlur = 25;
+      } else if (frameStyle === 'cyber') {
+        ctx.strokeStyle = '#8B5CF6';
+        ctx.shadowColor = '#C084FC';
+        ctx.shadowBlur = 25;
+      } else if (frameStyle === 'vip') {
+        ctx.strokeStyle = '#EF4444';
+        ctx.shadowColor = '#F87171';
+        ctx.shadowBlur = 25;
+      } else {
+        // Neon default
+        ctx.strokeStyle = '#3B82F6';
+        ctx.shadowColor = '#60A5FA';
+        ctx.shadowBlur = 30;
+      }
+
+      ctx.beginPath();
+      ctx.arc(center, center, radius + 10, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Draw Badge Label
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.shadowBlur = 10;
+      ctx.font = 'bold 28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`✨ ${frameStyle.toUpperCase()} FRAME • ${rawName.toUpperCase()} ✨`, center, size - 40);
+
+      const buffer = canvas.toBuffer('image/png');
+      api.setMessageReaction('✅', event.messageID, () => {}, true);
+
+      return message.reply({
+        body: `🖼️ Customized PFP Frame [${frameStyle.toUpperCase()}] for ${rawName}:`,
+        attachment: buffer
+      });
+    } catch (err) {
+      console.error('PFPFrame error:', err.message);
+      api.setMessageReaction('❌', event.messageID, () => {}, true);
+      return message.reply(`❌ Could not generate frame: ${err.message}`);
+    }
+  }
+};
