@@ -130,7 +130,7 @@
     "webhookUrl": ""
   },
   "AI_FALLBACK": {
-    "enable": true,
+    "enable": false,
     "command": "bby"
   },
   "optionsFca": {

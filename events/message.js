@@ -186,10 +186,10 @@ module.exports = {
 
       if (!startsWithPrefix) {
         const tData = database.getThreadData(event.threadId);
-        const autoTalkEnabled = tData?.settings?.autotalk !== false;
+        const autoTalkEnabled = tData?.settings?.autotalk === true;
 
-        // Auto-Talk & AI Fallback for non-command chat & voice messages
-        if ((config.AI_FALLBACK?.enable || autoTalkEnabled) && (event.body || event.isVoiceMessage) && autoTalkEnabled) {
+        // Auto-Talk & AI Fallback for non-command chat (ONLY active if explicitly turned on per chat with !autotalk on)
+        if (autoTalkEnabled && (event.body || event.isVoiceMessage)) {
           const aiCommandName = config.AI_FALLBACK?.command || 'bby';
           const aiCommand = commandLoader.getCommand(aiCommandName);
           if (aiCommand) {
