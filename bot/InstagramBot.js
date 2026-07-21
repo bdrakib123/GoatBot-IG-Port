@@ -437,6 +437,14 @@ class InstagramBot {
     this.connectionStatus  = 'online';
     this.lastErrorReason   = null;
     logger.info('Connected to Instagram', { userID: this.userID });
+
+    if (this.ig && typeof this.ig.on === 'function') {
+      this.ig.on('cookiesUpdated', () => {
+        logger.info('Session cookies refreshed by Instagram server — saving to account.txt');
+        this.saveSession();
+      });
+    }
+
     this.saveSession();
 
     this.eventLoader.handleEvent('ready', {}).then(() => {
