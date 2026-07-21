@@ -43,13 +43,16 @@ module.exports = {
       message.reaction("⏳");
       const res = await axios.get(payloadUrl);
 
-      if (res.data && res.data.response) {
-        message.reaction("✅");
-        return message.reply(res.data.response);
-      } else {
-        message.reaction("⚠️");
-        return message.reply("⚠️ No valid response from Gemini API.");
+      const rawRes = res.data?.response || res.data?.reply || (typeof res.data === 'string' ? res.data : null);
+      if (rawRes && typeof rawRes === 'string') {
+        const cleaned = rawRes.trim();
+        if (!cleaned.startsWith('<') && !/<!DOCTYPE|<html|<head|<script|cloudflare|just a moment|fingerprint/i.test(cleaned)) {
+          message.reaction("✅");
+          return message.reply(cleaned);
+        }
       }
+      message.reaction("⚠️");
+      return message.reply("⚠️ No valid response from Gemini API.");
     } catch (err) {
       logger.error("Gemini API error:", err.message);
       message.reaction("❌");

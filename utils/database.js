@@ -38,8 +38,28 @@ class Database {
           return `https://www.instagram.com/p/avatar/${uid}`;
       },
       getName: async (uid) => {
-          const u = this.getUser(uid);
-          return u.name || uid;
+          if (!uid) return 'User';
+          const clean = String(uid).replace(/^@+/, '').trim();
+          let u = this.getUser(clean);
+          if (!u.name && !u.username) {
+            const byUsername = this.getUserByUsername(clean);
+            if (byUsername) u = byUsername;
+          }
+          if (u.name) return u.name;
+          if (u.username) return '@' + u.username;
+          if (global.GoatBot?.instance?.api) {
+            try {
+              const info = await global.GoatBot.instance.api.getUserInfo(clean);
+              const mapped = info[clean] || info;
+              if (mapped.name || mapped.fullName || mapped.username) {
+                u.name = mapped.name || mapped.fullName || mapped.username;
+                u.username = mapped.username || u.username;
+                this.updateUser(u.id || clean, u);
+                return u.name;
+              }
+            } catch (_) {}
+          }
+          return clean;
       },
       getNameInDB: (uid) => {
           const u = this.data.users[uid];
@@ -198,6 +218,18 @@ class Database {
       };
     }
     return this.data.users[uid];
+  }
+
+  getUserByUsername(username) {
+    if (!username) return null;
+    const clean = String(username).replace(/^@+/, '').trim().toLowerCase();
+    for (const uid in this.data.users) {
+      const u = this.data.users[uid];
+      if (u.username && u.username.toLowerCase() === clean) {
+        return u;
+      }
+    }
+    return null;
   }
 
   updateUser(uid, updates) {

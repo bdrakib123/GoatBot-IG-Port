@@ -29,11 +29,16 @@ module.exports = {
     try {
       const url = `https://kaiz-apis.gleeze.com/api/claude3-haiku?ask=${encodeURIComponent(query)}&apikey=${apikey}`;
       const res = await axios.get(url);
-      const responseText = res.data?.response;
+      const rawText = res.data?.response || res.data?.reply || (typeof res.data === 'string' ? res.data : null);
 
-      if (!responseText) throw new Error('No response from API');
+      if (!rawText || typeof rawText !== 'string') throw new Error('No response from API');
 
-      await message.reply(responseText);
+      const cleaned = rawText.trim();
+      if (cleaned.startsWith('<') || /<!DOCTYPE|<html|<head|<script|cloudflare|just a moment|fingerprint/i.test(cleaned)) {
+        throw new Error('Claude API returned Cloudflare/HTML payload');
+      }
+
+      await message.reply(cleaned);
       api.setMessageReaction('✅', event.messageID, () => {}, true);
     } catch (err) {
       console.error('Claude error:', err.message);

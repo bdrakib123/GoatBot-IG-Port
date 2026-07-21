@@ -806,8 +806,11 @@ class InstagramBot {
                   }
                   // Handle Streams and Buffers
                   else if (item && (item.readable || item.pipe || Buffer.isBuffer(item))) {
-                      let rawExt = item.filename ? path.extname(item.filename) : (item.name ? path.extname(item.name) : (item.path ? path.extname(item.path) : ''));
-                      if (!rawExt) rawExt = '.png';
+                      let rawExt = item.filename ? path.extname(item.filename) : (item.name ? path.extname(item.name) : (item.path ? path.extname(item.path) : (item._path ? path.extname(item._path) : '')));
+                      if (!rawExt && item.mimeType) {
+                          rawExt = utils.getExtFromMimeType(item.mimeType);
+                      }
+                      if (!rawExt || rawExt === '.') rawExt = '.png';
                       const ext = rawExt.startsWith('.') ? rawExt : `.${rawExt}`;
                       const tempPath = path.join(process.cwd(), 'temp', `media_${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`);
                       await fs.ensureDir(path.dirname(tempPath));
@@ -1003,18 +1006,19 @@ class InstagramBot {
       },
 
       unsendMessage: async (messageID, threadID, callback) => {
+        if (typeof threadID === 'function') {
+          callback = threadID;
+          threadID = null;
+        }
         try {
-          if (typeof threadID === 'function') {
-              callback = threadID;
-              threadID = null;
-          }
           const res = await ig.unsendMessage(messageID);
           if (typeof callback === 'function') callback(null, res);
           return res;
         } catch (error) {
-          logger.error('Failed to unsend message', { error: error.message, messageID });
-          if (typeof callback === 'function') callback(error);
-          throw error;
+          const cleanErr = new Error(`Failed to unsend message: ${error?.message || 'Message cannot be unsent'}`);
+          logger.error('Failed to unsend message', { error: cleanErr.message, messageID });
+          if (typeof callback === 'function') callback(cleanErr);
+          return false;
         }
       },
 
@@ -1023,36 +1027,96 @@ class InstagramBot {
         return db.getLastSentMessage(threadID);
       },
 
-      getUserInfo: async (userID) => {
+      getAvatarUrl: async (userID) => {
+        try {
+          if (!userID) return '';
+          const clean = String(userID).replace(/^@+/, '').trim();
+          let info = null;
+          if (/^\d+$/.test(clean)) {
+            info = await ig.getUserInfo(clean).catch(() => null);
+          } else {
+            info = await ig.getUserInfoByUsername(clean).catch(() => null);
+          }
+          return info?.profilePicUrlHd || info?.profile_pic_url_hd || info?.profilePicUrl || info?.profile_pic_url || '';
+        } catch (_) {
+          return '';
+        }
+      },
+
+      getUserInfo: async (userID, callback) => {
         try {
           const fetchSingle = async (id) => {
             if (!id) return {};
             const clean = String(id).replace(/^@+/, '').trim();
-            let info = null;
+            let raw = null;
             if (/^\d+$/.test(clean)) {
-              info = await ig.getUserInfo(clean).catch(() => null);
+              raw = await ig.getUserInfo(clean).catch(() => null);
             } else {
-              info = await ig.getUserInfoByUsername(clean).catch(() => null);
+              raw = await ig.getUserInfoByUsername(clean).catch(() => null);
             }
-            return info || {};
+            if (!raw || typeof raw !== 'object') raw = {};
+
+            const cleanId = String(raw.pk || raw.id || raw.userID || raw.userId || clean || '');
+            const mapped = {
+              userID: cleanId,
+              userId: cleanId,
+              pk: cleanId,
+              name: raw.fullName || raw.full_name || raw.name || raw.username || '',
+              fullName: raw.fullName || raw.full_name || raw.name || '',
+              full_name: raw.fullName || raw.full_name || raw.name || '',
+              username: raw.username || '',
+              vanity: raw.username || '',
+              firstName: (raw.fullName || raw.full_name || raw.name || '').split(' ')[0] || '',
+              profilePicUrl: raw.profilePicUrl || raw.profile_pic_url || raw.profilePicUrlHd || raw.profile_pic_url_hd || '',
+              profilePicUrlHd: raw.profilePicUrlHd || raw.profile_pic_url_hd || raw.profilePicUrl || raw.profile_pic_url || '',
+              thumbSrc: raw.profilePicUrl || raw.profile_pic_url || raw.profilePicUrlHd || raw.profile_pic_url_hd || '',
+              profileUrl: raw.username ? `https://instagram.com/${raw.username}` : '',
+              bio: raw.biography || raw.bio || '',
+              biography: raw.biography || raw.bio || '',
+              isPrivate: Boolean(raw.isPrivate || raw.is_private),
+              isVerified: Boolean(raw.isVerified || raw.is_verified),
+              followerCount: Number(raw.followerCount || raw.follower_count || 0),
+              followingCount: Number(raw.followingCount || raw.following_count || 0),
+              mediaCount: Number(raw.mediaCount || raw.media_count || 0),
+              gender: raw.gender || '',
+              type: 'user',
+              isFriend: false,
+              isBirthday: false
+            };
+            return mapped;
           };
 
+          const ids = Array.isArray(userID) ? userID : [userID];
+          const resMap = {};
+          for (const id of ids) {
+            const key = String(id);
+            resMap[key] = await fetchSingle(id);
+          }
+
+          let finalResult;
           if (Array.isArray(userID)) {
-            const res = {};
-            for (const id of userID) {
-              res[id] = await fetchSingle(id);
-            }
-            return res;
+            finalResult = resMap;
+          } else {
+            const singleKey = String(userID);
+            const singleVal = resMap[singleKey] || {};
+            finalResult = { [singleKey]: singleVal, ...singleVal };
           }
-          const info = await fetchSingle(userID);
-          const resMap = { [userID]: info };
-          if (info && typeof info === 'object') {
-            Object.assign(resMap, info);
-          }
-          return resMap;
+
+          if (typeof callback === 'function') callback(null, finalResult);
+          return finalResult;
         } catch (error) {
           logger.error('Failed to get user info', { error: error.message, userID });
-          return { [userID]: {} };
+          const ids = Array.isArray(userID) ? userID : [userID];
+          const errRes = {};
+          for (const id of ids) {
+            const cleanId = String(id);
+            errRes[cleanId] = {
+              userID: cleanId, userId: cleanId, pk: cleanId, name: '', fullName: '', full_name: '', username: '', vanity: '', firstName: '', profilePicUrl: '', profilePicUrlHd: '', thumbSrc: '', profileUrl: '', bio: '', biography: '', isPrivate: false, isVerified: false, followerCount: 0, followingCount: 0, mediaCount: 0, gender: '', type: 'user', isFriend: false, isBirthday: false
+            };
+          }
+          const finalErr = Array.isArray(userID) ? errRes : { [String(userID)]: errRes[String(userID)], ...errRes[String(userID)] };
+          if (typeof callback === 'function') callback(null, finalErr);
+          return finalErr;
         }
       },
 

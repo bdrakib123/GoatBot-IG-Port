@@ -45,14 +45,19 @@ module.exports = {
       if (imageUrl) params.img_url = imageUrl;
 
       const response = await axios.get(META_API, { params, timeout: 30000 });
-      const { success, message: replyText, image_urls, conversation_id } = response.data;
+      const { success, message: replyText, image_urls, conversation_id } = response.data || {};
 
-      if (!success) throw new Error('Meta AI API returned an unsuccessful response');
+      if (!success || !replyText) throw new Error('Meta AI API returned an unsuccessful response');
+
+      const cleaned = String(replyText).trim();
+      if (cleaned.startsWith('<') || /<!DOCTYPE|<html|<head|<script|cloudflare|just a moment|fingerprint/i.test(cleaned)) {
+        throw new Error('Meta AI API returned Cloudflare/HTML payload');
+      }
 
       if (conversation_id) conversations.set(key, conversation_id);
 
       message.reaction('✅');
-      message.reply(replyText);
+      message.reply(cleaned);
 
       if (Array.isArray(image_urls) && image_urls.length > 0) {
         for (const imgUrl of image_urls) {

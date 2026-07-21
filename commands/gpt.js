@@ -16,12 +16,19 @@ module.exports = {
     if (!prompt) return message.reply('Please provide a prompt.');
 
     try {
-      message.reaction('⏳');
       const response = await axios.get(`https://api.jisan-official.com/gpt4?prompt=${encodeURIComponent(prompt)}`);
-      const answer = response.data.response || response.data.answer || "No response from AI.";
+      const rawAns = response.data?.response || response.data?.answer || (typeof response.data === 'string' ? response.data : null);
 
-      message.reply(answer);
-      message.reaction('✅');
+      if (rawAns && typeof rawAns === 'string') {
+        const cleaned = rawAns.trim();
+        if (!cleaned.startsWith('<') && !/<!DOCTYPE|<html|<head|<script|cloudflare|just a moment|fingerprint/i.test(cleaned)) {
+          message.reply(cleaned);
+          message.reaction('✅');
+          return;
+        }
+      }
+      message.reply('⚠️ Received invalid response from AI service.');
+      message.reaction('⚠️');
     } catch (error) {
       console.error('GPT Error:', error.message);
       message.reply('An error occurred while connecting to AI service.');
