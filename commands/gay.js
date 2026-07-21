@@ -56,29 +56,61 @@ module.exports = {
       const canvas = createCanvas(800, 400);
       const ctx = canvas.getContext('2d');
 
-      // Draw Avatars
-      ctx.drawImage(img1, 0, 0, 400, 400);
-      ctx.drawImage(img2, 400, 0, 400, 400);
-
-      // Rainbow Overlay
-      const rainbow = ctx.createLinearGradient(0, 0, 800, 400);
-      rainbow.addColorStop(0, 'rgba(255, 0, 0, 0.4)');
-      rainbow.addColorStop(0.2, 'rgba(255, 127, 0, 0.4)');
-      rainbow.addColorStop(0.4, 'rgba(255, 255, 0, 0.4)');
-      rainbow.addColorStop(0.6, 'rgba(0, 255, 0, 0.4)');
-      rainbow.addColorStop(0.8, 'rgba(0, 0, 255, 0.4)');
-      rainbow.addColorStop(1, 'rgba(139, 0, 255, 0.4)');
-
-      ctx.fillStyle = rainbow;
+      // Background Rainbow Gradient
+      const bgGrad = ctx.createLinearGradient(0, 0, 800, 400);
+      bgGrad.addColorStop(0, '#FF0000');
+      bgGrad.addColorStop(0.2, '#FF7F00');
+      bgGrad.addColorStop(0.4, '#FFFF00');
+      bgGrad.addColorStop(0.6, '#00FF00');
+      bgGrad.addColorStop(0.8, '#0000FF');
+      bgGrad.addColorStop(1, '#8B00FF');
+      ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, 800, 400);
 
-      // Draw Badge Label
-      ctx.fillStyle = '#FFFFFF';
+      // User 1 Avatar (Circular Clip)
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(200, 180, 100, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(img1, 100, 80, 200, 200);
+      ctx.restore();
+
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = '#FFFFFF';
       ctx.shadowColor = '#000000';
-      ctx.shadowBlur = 10;
-      ctx.font = 'bold 30px sans-serif';
+      ctx.shadowBlur = 15;
+      ctx.beginPath();
+      ctx.arc(200, 180, 104, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // User 2 Avatar (Circular Clip)
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(600, 180, 100, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(img2, 500, 80, 200, 200);
+      ctx.restore();
+
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(600, 180, 104, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Center Heart & Rainbow Badge
+      ctx.font = 'bold 60px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`🌈 ${name1} 💋 ${name2} 🌈`, 400, 360);
+      ctx.fillText('💋', 400, 190);
+
+      // Bottom Banner Label
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+      ctx.fillRect(0, 320, 800, 80);
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 26px sans-serif';
+      ctx.fillText(`🌈 ${name1} × ${name2} 🌈`, 400, 365);
 
       const buffer = canvas.toBuffer('image/png');
       api.setMessageReaction('✅', event.messageID, () => {}, true);
