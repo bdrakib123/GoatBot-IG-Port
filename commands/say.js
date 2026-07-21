@@ -60,17 +60,9 @@ module.exports = {
       let audioUrl;
       let isHuggingFace = false;
 
-      // Tiered logic: Character -> HuggingFace -> Google TTS (if langMode) -> StreamElements Custom
-      if (characterVoices[voiceOrText]) {
-        audioUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${characterVoices[voiceOrText]}&text=${encodeURIComponent(text)}`;
-      } else if (voiceOrText.startsWith("hf:")) {
-        isHuggingFace = true;
-      } else if (langMode || voiceOrText.length <= 3) {
-        // Fallback to Google TTS logic for short voice names (assumed language codes)
-        audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${voiceOrText}&client=tw-ob&q=${encodeURIComponent(text)}`;
-      } else {
-        audioUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(voiceOrText)}&text=${encodeURIComponent(text)}`;
-      }
+      // Tiered logic: Google TTS (tw-ob) -> Google TTS (gtx)
+      const lang = (langMode || voiceOrText.length <= 3) ? voiceOrText : 'en';
+      audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&q=${encodeURIComponent(text)}`;
 
       if (isHuggingFace) {
         const model = voiceOrText.replace("hf:", "");
@@ -81,7 +73,6 @@ module.exports = {
         );
         await fs.writeFile(tempPath, Buffer.from(res.data));
       } else {
-        // Use multi-tier Google fallback if the first attempt fails and it looks like a language
         try {
             const res = await axios({
                 method: "get",
@@ -92,17 +83,15 @@ module.exports = {
             });
             await fs.writeFile(tempPath, Buffer.from(res.data));
         } catch (e) {
-            if (langMode || voiceOrText.length <= 3) {
-                const fallbackUrl = `https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=${voiceOrText}&client=gtx&q=${encodeURIComponent(text)}`;
-                const res = await axios({
-                    method: "get",
-                    url: fallbackUrl,
-                    responseType: "arraybuffer",
-                    headers: { "User-Agent": UA },
-                    timeout: 15000
-                });
-                await fs.writeFile(tempPath, Buffer.from(res.data));
-            } else throw e;
+            const fallbackUrl = `https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=${lang}&client=gtx&q=${encodeURIComponent(text)}`;
+            const res = await axios({
+                method: "get",
+                url: fallbackUrl,
+                responseType: "arraybuffer",
+                headers: { "User-Agent": UA },
+                timeout: 15000
+            });
+            await fs.writeFile(tempPath, Buffer.from(res.data));
         }
       }
 
