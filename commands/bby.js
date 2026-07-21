@@ -99,19 +99,21 @@ module.exports = {
         return sent;
       }
 
-      // Multi-tier API fetch helper for zero downtime
+      // Multi-tier open source API fetch helper for zero downtime
       async function fetchBabyReply(queryText, name) {
         const endpoints = [
+          `https://api.simsimi.net/v2/?text=${encodeURIComponent(queryText)}&lc=en`,
           `https://simsimi.cyberbot.top/simsimi?text=${encodeURIComponent(queryText)}&senderName=${encodeURIComponent(name)}`,
           `https://kaiz-apis.gleeze.com/api/simsimi?ask=${encodeURIComponent(queryText)}`,
+          `https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(queryText)}&botname=Baby&ownername=Jisan`,
           `https://kaiz-apis.gleeze.com/api/gemini-pro?ask=${encodeURIComponent(queryText)}&uid=${uid}`,
-          `https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(queryText)}&botname=Baby&ownername=Jisan`
+          `https://text.pollinations.ai/${encodeURIComponent(queryText)}`
         ];
 
         for (const ep of endpoints) {
           try {
             const res = await axios.get(ep, { timeout: 8000 });
-            const rep = res.data?.response || res.data?.reply || res.data?.message;
+            const rep = res.data?.success || res.data?.response || res.data?.reply || res.data?.message || (typeof res.data === 'string' ? res.data : null);
             if (rep && typeof rep === 'string' && rep.trim()) {
               return Array.isArray(rep) ? rep[0] : rep;
             }
@@ -162,17 +164,19 @@ module.exports = {
 
     try {
       const endpoints = [
+        `https://api.simsimi.net/v2/?text=${encodeURIComponent(text)}&lc=en`,
         `https://simsimi.cyberbot.top/simsimi?text=${encodeURIComponent(text)}&senderName=${encodeURIComponent(senderName)}`,
         `https://kaiz-apis.gleeze.com/api/simsimi?ask=${encodeURIComponent(text)}`,
+        `https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(text)}&botname=Baby&ownername=Jisan`,
         `https://kaiz-apis.gleeze.com/api/gemini-pro?ask=${encodeURIComponent(text)}&uid=${uid}`,
-        `https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(text)}&botname=Baby&ownername=Jisan`
+        `https://text.pollinations.ai/${encodeURIComponent(text)}`
       ];
 
       let replyText = 'Bolo baby 🥺';
       for (const ep of endpoints) {
         try {
           const res = await axios.get(ep, { timeout: 8000 });
-          const rep = res.data?.response || res.data?.reply || res.data?.message;
+          const rep = res.data?.success || res.data?.response || res.data?.reply || res.data?.message || (typeof res.data === 'string' ? res.data : null);
           if (rep && typeof rep === 'string' && rep.trim()) {
             replyText = Array.isArray(rep) ? rep[0] : rep;
             break;
