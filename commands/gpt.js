@@ -19,13 +19,21 @@ module.exports = {
       const response = await axios.get(`https://api.jisan-official.com/gpt4?prompt=${encodeURIComponent(prompt)}`);
       const rawAns = response.data?.response || response.data?.answer || (typeof response.data === 'string' ? response.data : null);
 
-      if (rawAns && typeof rawAns === 'string') {
-        const cleaned = rawAns.trim();
-        if (!cleaned.startsWith('<') && !/<!DOCTYPE|<html|<head|<script|cloudflare|just a moment|fingerprint/i.test(cleaned)) {
-          message.reply(cleaned);
-          message.reaction('✅');
-          return;
-        }
+function isValidAiResponse(text) {
+  if (!text || typeof text !== 'string') return false;
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith('<') || trimmed.endsWith('>') || trimmed.startsWith('{') || trimmed.startsWith('<!')) return false;
+  if (/<[a-z0-9]+[\s\S]*?>/i.test(trimmed)) return false;
+  if (/<!DOCTYPE|<html|<head|<body|<script|fingerprint|simsimi\.net|redirect_link|rdrTimeout|visitorId|cloudflare|just a moment|tr_uuid/i.test(trimmed)) return false;
+  if (trimmed.includes('simsimi.net')) return false;
+  return true;
+}
+
+      if (isValidAiResponse(rawAns)) {
+        message.reply(rawAns.trim());
+        message.reaction('✅');
+        return;
       }
       message.reply('⚠️ Received invalid response from AI service.');
       message.reaction('⚠️');

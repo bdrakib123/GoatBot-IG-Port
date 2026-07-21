@@ -26,8 +26,8 @@ class ModerationManager {
 
   checkCommandSpam(userId) {
     const uid = String(userId);
-    const threshold = config.SPAM_COMMAND_THRESHOLD;
-    const window    = config.SPAM_TIME_WINDOW * 1000;
+    const threshold = config.SPAM_COMMAND_THRESHOLD || 5;
+    const window    = (config.SPAM_TIME_WINDOW || 10) * 1000;
     const now = Date.now();
     let entry = spamMap.get(uid);
     if (!entry || now - entry.windowStart > window) {
@@ -36,7 +36,8 @@ class ModerationManager {
     }
     entry.count++;
     if (entry.count > threshold) {
-      return { isSpam: true, shouldBan: true, message: config.HIDE_NOTI.userBanned ? null : '🚫 You have been temporarily banned for spamming commands.' };
+      // Rate-limit temporarily, but DO NOT auto-ban the user (only admins can ban)
+      return { isSpam: true, shouldBan: false, message: '⏰ Command rate limit reached. Please slow down.' };
     }
     return { isSpam: false };
   }
@@ -46,7 +47,8 @@ class ModerationManager {
   async moderateMessage(userId, threadId, messageText) {
     const uid = String(userId), tid = String(threadId);
     if (database.isBanned(uid)) {
-      return { allowed: false, reason: 'userBanned', message: config.HIDE_NOTI.userBanned ? null : '🚫 You have been banned from using this bot.' };
+      // Silently block banned users without spamming ban messages into GC
+      return { allowed: false, reason: 'userBanned', message: null };
     }
     if (!this.checkWhitelist(uid, tid)) {
       return { allowed: false, reason: 'whitelist', message: '⚠️ This bot is in whitelist mode. You are not authorized.' };

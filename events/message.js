@@ -14,7 +14,10 @@ module.exports = {
       const { api, commandLoader } = bot;
       const event = data;
 
-      if (event.senderID === bot.userID) return;
+      const currentBotID = bot.userID || (api && typeof api.getCurrentUserID === 'function' ? api.getCurrentUserID() : null);
+      const botIDStr = typeof currentBotID === 'object' ? (currentBotID.userID || currentBotID.userId) : String(currentBotID || '');
+
+      if (event.isSelf || (event.senderID && botIDStr && String(event.senderID) === String(botIDStr))) return;
       if (config.ANTI_INBOX && !event.isGroup) return;
 
       const replyApi = new Proxy(api, {
@@ -107,7 +110,7 @@ module.exports = {
 
       const modResult = await moderation.moderateMessage(event.senderID, event.threadId, event.body);
       if (!modResult.allowed) {
-        if (modResult.message) await api.sendMessage(modResult.message, event.threadId);
+        if (modResult.message && !event.isGroup) await api.sendMessage(modResult.message, event.threadId);
         return;
       }
 
@@ -297,9 +300,8 @@ module.exports = {
 
       const spamCheck = moderation.checkCommandSpam(event.senderID);
       if (spamCheck.isSpam) {
-          database.banUser(String(event.senderID));
           moderation.resetSpam(event.senderID);
-          if (spamCheck.message) await replyApi.sendMessage(spamCheck.message, event.threadId);
+          if (spamCheck.message && !event.isGroup) await replyApi.sendMessage(spamCheck.message, event.threadId);
           return;
       }
 

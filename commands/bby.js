@@ -13,9 +13,16 @@ module.exports = {
     category: 'ai'
   },
 
-  async onStart({ api, event, args, logger, database, usersData }) {
+  async onStart({ api, event, args, bot, logger, database, usersData }) {
     const uid = event.senderID;
     const threadID = event.threadId || event.threadID;
+
+    // Prevent bot from replying to itself
+    const currentBotID = bot?.userID || (api?.getCurrentUserID ? api.getCurrentUserID() : null);
+    const botIDStr = typeof currentBotID === 'object' ? (currentBotID.userID || currentBotID.userId) : String(currentBotID || '');
+    if (event.isSelf || (uid && botIDStr && String(uid) === String(botIDStr))) return;
+
+    if (!global._lastBbyReply) global._lastBbyReply = {};
 
     // Get user name for SimSimi personalization
     let senderName = 'Jisan';
@@ -30,7 +37,9 @@ module.exports = {
 
     if (args.length === 0) {
       const idle = ['Bolo baby 🥺', 'hum...', 'Type bby help', 'Ki bolbe?'];
-      const res = await api.sendMessage(idle[Math.floor(Math.random() * idle.length)], threadID);
+      const chosenIdle = idle[Math.floor(Math.random() * idle.length)];
+      global._lastBbyReply[threadID] = chosenIdle;
+      const res = await api.sendMessage(chosenIdle, threadID);
 
       if (res && res.messageID) {
         database.setReplyData(res.messageID, { commandName: 'bby' });
@@ -39,6 +48,11 @@ module.exports = {
     }
 
     const text = args.join(' ');
+
+    // Prevent replying to identical text that bby just sent in this thread (anti-loop)
+    if (global._lastBbyReply[threadID] && global._lastBbyReply[threadID].trim().toLowerCase() === text.trim().toLowerCase()) {
+      return;
+    }
 
     try {
       if (args[0] === 'remove' || args[0] === 'rm') {
@@ -92,17 +106,28 @@ module.exports = {
       }
 
       const localLearned = typeof database.findLearnedPair === 'function' ? database.findLearnedPair(text) : null;
-      if (localLearned) {
+      if (localLearned && localLearned.trim().toLowerCase() !== text.trim().toLowerCase()) {
+        global._lastBbyReply[threadID] = localLearned;
         const sent = await api.sendMessage(localLearned, threadID);
         if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
         if (typeof database.storeChatHistory === 'function') database.storeChatHistory(uid, threadID, localLearned, 'bot');
         return sent;
       }
 
+function isValidAiResponse(text) {
+  if (!text || typeof text !== 'string') return false;
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith('<') || trimmed.endsWith('>') || trimmed.startsWith('{') || trimmed.startsWith('<!')) return false;
+  if (/<[a-z0-9]+[\s\S]*?>/i.test(trimmed)) return false;
+  if (/<!DOCTYPE|<html|<head|<body|<script|fingerprint|simsimi\.net|redirect_link|rdrTimeout|visitorId|cloudflare|just a moment|tr_uuid/i.test(trimmed)) return false;
+  if (trimmed.includes('simsimi.net')) return false;
+  return true;
+}
+
       // Multi-tier open source API fetch helper for zero downtime
       async function fetchBabyReply(queryText, name) {
         const endpoints = [
-          `https://api.simsimi.net/v2/?text=${encodeURIComponent(queryText)}&lc=en`,
           `https://simsimi.cyberbot.top/simsimi?text=${encodeURIComponent(queryText)}&senderName=${encodeURIComponent(name)}`,
           `https://kaiz-apis.gleeze.com/api/simsimi?ask=${encodeURIComponent(queryText)}`,
           `https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(queryText)}&botname=Baby&ownername=Jisan`,
@@ -113,13 +138,10 @@ module.exports = {
         for (const ep of endpoints) {
           try {
             const res = await axios.get(ep, { timeout: 8000, headers: { 'Accept': 'application/json' } });
-            const rep = res.data?.success || res.data?.response || res.data?.reply || res.data?.message || (typeof res.data === 'string' ? res.data : null);
+            const rep = res.data?.response || res.data?.reply || res.data?.message || (typeof res.data === 'string' ? res.data : null);
             let finalRep = Array.isArray(rep) ? rep[0] : rep;
-            if (finalRep && typeof finalRep === 'string' && finalRep.trim()) {
-              const cleaned = finalRep.trim();
-              if (!cleaned.startsWith('<') && !/<!DOCTYPE|<html|<head|<script|fingerprint|simsimi\.net/i.test(cleaned)) {
-                return cleaned;
-              }
+            if (isValidAiResponse(finalRep)) {
+              return finalRep.trim();
             }
           } catch (_) {}
         }
@@ -127,6 +149,7 @@ module.exports = {
       }
 
       const replyText = await fetchBabyReply(text, senderName);
+      global._lastBbyReply[threadID] = replyText;
       const sent = await api.sendMessage(replyText, threadID);
       if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
       if (typeof database.storeChatHistory === 'function') database.storeChatHistory(uid, threadID, replyText, 'bot');
@@ -134,15 +157,28 @@ module.exports = {
 
     } catch (error) {
       logger.error('bby error', { error: error.message });
-      return api.sendMessage('Bolo baby 🥺 ki bolbe?', threadID);
+      const fallbackMsg = 'Bolo baby 🥺 ki bolbe?';
+      global._lastBbyReply[threadID] = fallbackMsg;
+      return api.sendMessage(fallbackMsg, threadID);
     }
   },
 
-  async handleReply({ api, event, logger, database, usersData }) {
+  async handleReply({ api, event, bot, logger, database, usersData }) {
     const uid  = event.senderID;
     const threadID = event.threadId || event.threadID;
+
+    // Self-message check
+    const currentBotID = bot?.userID || (api?.getCurrentUserID ? api.getCurrentUserID() : null);
+    const botIDStr = typeof currentBotID === 'object' ? (currentBotID.userID || currentBotID.userId) : String(currentBotID || '');
+    if (event.isSelf || (uid && botIDStr && String(uid) === String(botIDStr))) return;
+
     const text = (event.body || '').trim();
     if (!text) return;
+
+    if (!global._lastBbyReply) global._lastBbyReply = {};
+    if (global._lastBbyReply[threadID] && global._lastBbyReply[threadID].trim().toLowerCase() === text.toLowerCase()) {
+      return;
+    }
 
     let senderName = 'Jisan';
     try {
@@ -159,7 +195,8 @@ module.exports = {
     }
 
     const localLearned = typeof database.findLearnedPair === 'function' ? database.findLearnedPair(text) : null;
-    if (localLearned) {
+    if (localLearned && localLearned.trim().toLowerCase() !== text.toLowerCase()) {
+      global._lastBbyReply[threadID] = localLearned;
       const sent = await api.sendMessage(localLearned, threadID);
       if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
       if (typeof database.storeChatHistory === 'function') database.storeChatHistory(uid, threadID, localLearned, 'bot');
@@ -168,7 +205,6 @@ module.exports = {
 
     try {
       const endpoints = [
-        `https://api.simsimi.net/v2/?text=${encodeURIComponent(text)}&lc=en`,
         `https://simsimi.cyberbot.top/simsimi?text=${encodeURIComponent(text)}&senderName=${encodeURIComponent(senderName)}`,
         `https://kaiz-apis.gleeze.com/api/simsimi?ask=${encodeURIComponent(text)}`,
         `https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(text)}&botname=Baby&ownername=Jisan`,
@@ -180,24 +216,24 @@ module.exports = {
       for (const ep of endpoints) {
         try {
           const res = await axios.get(ep, { timeout: 8000, headers: { 'Accept': 'application/json' } });
-          const rep = res.data?.success || res.data?.response || res.data?.reply || res.data?.message || (typeof res.data === 'string' ? res.data : null);
+          const rep = res.data?.response || res.data?.reply || res.data?.message || (typeof res.data === 'string' ? res.data : null);
           let finalRep = Array.isArray(rep) ? rep[0] : rep;
-          if (finalRep && typeof finalRep === 'string' && finalRep.trim()) {
-            const cleaned = finalRep.trim();
-            if (!cleaned.startsWith('<') && !/<!DOCTYPE|<html|<head|<script|fingerprint|simsimi\.net/i.test(cleaned)) {
-              replyText = cleaned;
-              break;
-            }
+          if (isValidAiResponse(finalRep)) {
+            replyText = finalRep.trim();
+            break;
           }
         } catch (_) {}
       }
 
+      global._lastBbyReply[threadID] = replyText;
       const sent = await api.sendMessage(replyText, threadID);
       if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
       if (typeof database.storeChatHistory === 'function') database.storeChatHistory(uid, threadID, replyText, 'bot');
     } catch (error) {
       logger.error('bby handleReply error', { error: error.message });
-      return api.sendMessage('Bolo baby 🥺', threadID);
+      const fallbackMsg = 'Bolo baby 🥺';
+      global._lastBbyReply[threadID] = fallbackMsg;
+      return api.sendMessage(fallbackMsg, threadID);
     }
   }
 };

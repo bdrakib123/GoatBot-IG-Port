@@ -577,7 +577,10 @@ class InstagramBot {
     try {
       const { senderID, threadID, messageID, timestamp } = event;
 
-      if (senderID && senderID === this.userID) return;
+      const currentBotID = this.userID || (this.ig && typeof this.ig.getCurrentUserID === 'function' ? this.ig.getCurrentUserID() : null);
+      const botIDStr = typeof currentBotID === 'object' ? (currentBotID.userID || currentBotID.userId) : String(currentBotID || '');
+
+      if (event.isSelf || (senderID && botIDStr && String(senderID) === String(botIDStr))) return;
 
       const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
       if ((timestamp || 0) < fiveMinutesAgo && timestamp) return;

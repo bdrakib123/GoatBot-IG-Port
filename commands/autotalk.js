@@ -3,14 +3,14 @@ const config = require('../config');
 module.exports = {
   config: {
     name: 'autotalk',
-    aliases: ['atalk', 'chatbot', 'simtalk', 'talk', 'botchat'],
+    aliases: ['bot', 'atalk', 'chatbot', 'simtalk', 'talk', 'botchat'],
     version: '1.0',
     author: 'Jisan',
     cooldown: 3,
     role: 0,
     category: 'ai',
     description: 'Toggle Auto-Talk AI chatbot system for this chat',
-    usage: 'autotalk [on | off | status]'
+    usage: 'autotalk [on | off | status] (or bot [on | off])'
   },
 
   async onStart({ message, event, args, database }) {

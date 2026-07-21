@@ -429,6 +429,8 @@ class Database {
   learnPhrasePair(ask, reply, senderID) {
     if (!this.data.learnedPairs) this.data.learnedPairs = [];
     const cleanAsk = String(ask).toLowerCase().trim();
+    const cleanReply = String(reply).toLowerCase().trim();
+    if (!cleanAsk || !cleanReply || cleanAsk === cleanReply) return;
     const existing = this.data.learnedPairs.find(p => p.ask === cleanAsk && p.reply === reply);
     if (!existing) {
       this.data.learnedPairs.push({ ask: cleanAsk, reply, senderID, timestamp: Date.now() });
@@ -440,9 +442,8 @@ class Database {
     if (!this.data.learnedPairs || this.data.learnedPairs.length === 0) return null;
     const cleanText = String(text).toLowerCase().trim();
     const exact = this.data.learnedPairs.find(p => p.ask === cleanText);
-    if (exact) return exact.reply;
-    const match = this.data.learnedPairs.find(p => cleanText.length > 3 && (cleanText.includes(p.ask) || p.ask.includes(cleanText)));
-    return match ? match.reply : null;
+    if (exact && exact.reply.toLowerCase().trim() !== cleanText) return exact.reply;
+    return null;
   }
 }
 

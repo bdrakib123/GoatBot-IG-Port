@@ -36,28 +36,35 @@ module.exports = {
         } catch (_) {}
       }
 
+function isValidAiResponse(text) {
+  if (!text || typeof text !== 'string') return false;
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith('<') || trimmed.endsWith('>') || trimmed.startsWith('{') || trimmed.startsWith('<!')) return false;
+  if (/<[a-z0-9]+[\s\S]*?>/i.test(trimmed)) return false;
+  if (/<!DOCTYPE|<html|<head|<body|<script|fingerprint|simsimi\.net|redirect_link|rdrTimeout|visitorId|cloudflare|just a moment|tr_uuid/i.test(trimmed)) return false;
+  if (trimmed.includes('simsimi.net')) return false;
+  return true;
+}
+
       for (const ep of endpoints) {
         try {
           const res = await axios.get(ep, { timeout: 12000, headers: { 'Accept': 'application/json' } });
           const answer = res.data?.response || res.data?.reply || res.data?.message || (typeof res.data === 'string' ? res.data : null);
-          if (answer && typeof answer === 'string' && answer.trim()) {
-            const cleaned = answer.trim();
-            if (!cleaned.startsWith('<') && !/<!DOCTYPE|<html|<head|<script|fingerprint|simsimi\.net/i.test(cleaned)) {
-              api.setMessageReaction("✅", event.messageID, () => {}, true);
-              return api.sendMessage(`🤖 AI Response:\n\n${cleaned}`, event.threadId);
-            }
+          let finalAns = Array.isArray(answer) ? answer[0] : answer;
+          if (isValidAiResponse(finalAns)) {
+            api.setMessageReaction("✅", event.messageID, () => {}, true);
+            return api.sendMessage(`🤖 AI Response:\n\n${finalAns.trim()}`, event.threadId);
           }
         } catch (_) {}
       }
 
       // Final fallback via Pollinations AI Text
       const pollRes = await axios.get(`https://text.pollinations.ai/${encodeURIComponent(question)}`, { timeout: 12000 });
-      if (pollRes.data && typeof pollRes.data === 'string') {
-        const cleaned = pollRes.data.trim();
-        if (!cleaned.startsWith('<') && !/<!DOCTYPE|<html|<head|<script/i.test(cleaned)) {
-          api.setMessageReaction("✅", event.messageID, () => {}, true);
-          return api.sendMessage(`🤖 AI Response:\n\n${cleaned}`, event.threadId);
-        }
+      const pollText = typeof pollRes.data === 'string' ? pollRes.data : null;
+      if (isValidAiResponse(pollText)) {
+        api.setMessageReaction("✅", event.messageID, () => {}, true);
+        return api.sendMessage(`🤖 AI Response:\n\n${pollText.trim()}`, event.threadId);
       }
 
       throw new Error('All AI services are busy');
