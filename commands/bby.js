@@ -73,9 +73,29 @@ module.exports = {
         }
         const [ask, ans] = parts.map(p => p.trim());
 
-        const res = await axios.get(`${BASE_URL}/teach?ask=${encodeURIComponent(ask)}&ans=${encodeURIComponent(ans)}&senderID=${uid}&senderName=${encodeURIComponent(senderName)}&groupID=${encodeURIComponent(threadID)}`);
-        const sent = await api.sendMessage(res.data.message || '✅ Taught successfully!', threadID);
+        if (typeof database.learnPhrasePair === 'function') {
+          database.learnPhrasePair(ask, ans, uid);
+        }
+
+        try {
+          await axios.get(`${BASE_URL}/teach?ask=${encodeURIComponent(ask)}&ans=${encodeURIComponent(ans)}&senderID=${uid}&senderName=${encodeURIComponent(senderName)}&groupID=${encodeURIComponent(threadID)}`);
+        } catch (_) {}
+
+        const sent = await api.sendMessage(`✅ Learned phrase!\n\n❓ Ask: "${ask}"\n💬 Reply: "${ans}"`, threadID);
         if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
+        return sent;
+      }
+
+      // Check local memory & learned phrase pairs first
+      if (typeof database.storeChatHistory === 'function') {
+        database.storeChatHistory(uid, threadID, text, 'user');
+      }
+
+      const localLearned = typeof database.findLearnedPair === 'function' ? database.findLearnedPair(text) : null;
+      if (localLearned) {
+        const sent = await api.sendMessage(localLearned, threadID);
+        if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
+        if (typeof database.storeChatHistory === 'function') database.storeChatHistory(uid, threadID, localLearned, 'bot');
         return sent;
       }
 
@@ -103,6 +123,7 @@ module.exports = {
       const replyText = await fetchBabyReply(text, senderName);
       const sent = await api.sendMessage(replyText, threadID);
       if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
+      if (typeof database.storeChatHistory === 'function') database.storeChatHistory(uid, threadID, replyText, 'bot');
       return sent;
 
     } catch (error) {
@@ -127,6 +148,18 @@ module.exports = {
       }
     } catch (_) {}
 
+    if (typeof database.storeChatHistory === 'function') {
+      database.storeChatHistory(uid, threadID, text, 'user');
+    }
+
+    const localLearned = typeof database.findLearnedPair === 'function' ? database.findLearnedPair(text) : null;
+    if (localLearned) {
+      const sent = await api.sendMessage(localLearned, threadID);
+      if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
+      if (typeof database.storeChatHistory === 'function') database.storeChatHistory(uid, threadID, localLearned, 'bot');
+      return sent;
+    }
+
     try {
       const endpoints = [
         `https://simsimi.cyberbot.top/simsimi?text=${encodeURIComponent(text)}&senderName=${encodeURIComponent(senderName)}`,
@@ -149,6 +182,7 @@ module.exports = {
 
       const sent = await api.sendMessage(replyText, threadID);
       if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
+      if (typeof database.storeChatHistory === 'function') database.storeChatHistory(uid, threadID, replyText, 'bot');
     } catch (error) {
       logger.error('bby handleReply error', { error: error.message });
       return api.sendMessage('Bolo baby 🥺', threadID);

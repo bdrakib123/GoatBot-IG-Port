@@ -377,6 +377,41 @@ class Database {
     this.data.autoRemoveMessages = this.data.autoRemoveMessages.filter(m => m.triggerTime > now);
     return expired;
   }
+
+  storeChatHistory(senderID, threadID, text, role = 'user') {
+    if (!this.data.chatHistory) this.data.chatHistory = {};
+    const key = `${threadID}_${senderID}`;
+    if (!this.data.chatHistory[key]) this.data.chatHistory[key] = [];
+    this.data.chatHistory[key].push({ role, text, timestamp: Date.now() });
+    if (this.data.chatHistory[key].length > 30) {
+      this.data.chatHistory[key].shift();
+    }
+  }
+
+  getChatHistory(senderID, threadID) {
+    if (!this.data.chatHistory) return [];
+    const key = `${threadID}_${senderID}`;
+    return this.data.chatHistory[key] || [];
+  }
+
+  learnPhrasePair(ask, reply, senderID) {
+    if (!this.data.learnedPairs) this.data.learnedPairs = [];
+    const cleanAsk = String(ask).toLowerCase().trim();
+    const existing = this.data.learnedPairs.find(p => p.ask === cleanAsk && p.reply === reply);
+    if (!existing) {
+      this.data.learnedPairs.push({ ask: cleanAsk, reply, senderID, timestamp: Date.now() });
+      if (this.data.learnedPairs.length > 2000) this.data.learnedPairs.shift();
+    }
+  }
+
+  findLearnedPair(text) {
+    if (!this.data.learnedPairs || this.data.learnedPairs.length === 0) return null;
+    const cleanText = String(text).toLowerCase().trim();
+    const exact = this.data.learnedPairs.find(p => p.ask === cleanText);
+    if (exact) return exact.reply;
+    const match = this.data.learnedPairs.find(p => cleanText.length > 3 && (cleanText.includes(p.ask) || p.ask.includes(cleanText)));
+    return match ? match.reply : null;
+  }
 }
 
 module.exports = new Database();
