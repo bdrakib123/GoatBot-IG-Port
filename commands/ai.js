@@ -38,20 +38,26 @@ module.exports = {
 
       for (const ep of endpoints) {
         try {
-          const res = await axios.get(ep, { timeout: 12000 });
-          const answer = res.data?.response || res.data?.reply || res.data?.message;
+          const res = await axios.get(ep, { timeout: 12000, headers: { 'Accept': 'application/json' } });
+          const answer = res.data?.response || res.data?.reply || res.data?.message || (typeof res.data === 'string' ? res.data : null);
           if (answer && typeof answer === 'string' && answer.trim()) {
-            api.setMessageReaction("✅", event.messageID, () => {}, true);
-            return api.sendMessage(`🤖 AI Response:\n\n${answer.trim()}`, event.threadId);
+            const cleaned = answer.trim();
+            if (!cleaned.startsWith('<') && !/<!DOCTYPE|<html|<head|<script|fingerprint|simsimi\.net/i.test(cleaned)) {
+              api.setMessageReaction("✅", event.messageID, () => {}, true);
+              return api.sendMessage(`🤖 AI Response:\n\n${cleaned}`, event.threadId);
+            }
           }
         } catch (_) {}
       }
 
       // Final fallback via Pollinations AI Text
       const pollRes = await axios.get(`https://text.pollinations.ai/${encodeURIComponent(question)}`, { timeout: 12000 });
-      if (pollRes.data) {
-        api.setMessageReaction("✅", event.messageID, () => {}, true);
-        return api.sendMessage(`🤖 AI Response:\n\n${String(pollRes.data).trim()}`, event.threadId);
+      if (pollRes.data && typeof pollRes.data === 'string') {
+        const cleaned = pollRes.data.trim();
+        if (!cleaned.startsWith('<') && !/<!DOCTYPE|<html|<head|<script/i.test(cleaned)) {
+          api.setMessageReaction("✅", event.messageID, () => {}, true);
+          return api.sendMessage(`🤖 AI Response:\n\n${cleaned}`, event.threadId);
+        }
       }
 
       throw new Error('All AI services are busy');

@@ -112,10 +112,14 @@ module.exports = {
 
         for (const ep of endpoints) {
           try {
-            const res = await axios.get(ep, { timeout: 8000 });
+            const res = await axios.get(ep, { timeout: 8000, headers: { 'Accept': 'application/json' } });
             const rep = res.data?.success || res.data?.response || res.data?.reply || res.data?.message || (typeof res.data === 'string' ? res.data : null);
-            if (rep && typeof rep === 'string' && rep.trim()) {
-              return Array.isArray(rep) ? rep[0] : rep;
+            let finalRep = Array.isArray(rep) ? rep[0] : rep;
+            if (finalRep && typeof finalRep === 'string' && finalRep.trim()) {
+              const cleaned = finalRep.trim();
+              if (!cleaned.startsWith('<') && !/<!DOCTYPE|<html|<head|<script|fingerprint|simsimi\.net/i.test(cleaned)) {
+                return cleaned;
+              }
             }
           } catch (_) {}
         }
@@ -175,11 +179,15 @@ module.exports = {
       let replyText = 'Bolo baby 🥺';
       for (const ep of endpoints) {
         try {
-          const res = await axios.get(ep, { timeout: 8000 });
+          const res = await axios.get(ep, { timeout: 8000, headers: { 'Accept': 'application/json' } });
           const rep = res.data?.success || res.data?.response || res.data?.reply || res.data?.message || (typeof res.data === 'string' ? res.data : null);
-          if (rep && typeof rep === 'string' && rep.trim()) {
-            replyText = Array.isArray(rep) ? rep[0] : rep;
-            break;
+          let finalRep = Array.isArray(rep) ? rep[0] : rep;
+          if (finalRep && typeof finalRep === 'string' && finalRep.trim()) {
+            const cleaned = finalRep.trim();
+            if (!cleaned.startsWith('<') && !/<!DOCTYPE|<html|<head|<script|fingerprint|simsimi\.net/i.test(cleaned)) {
+              replyText = cleaned;
+              break;
+            }
           }
         } catch (_) {}
       }
