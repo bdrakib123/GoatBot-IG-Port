@@ -79,16 +79,35 @@ module.exports = {
         return sent;
       }
 
-      const res = await axios.get(`${BASE_URL}/simsimi?text=${encodeURIComponent(text)}&senderName=${encodeURIComponent(senderName)}`);
-      const reply = Array.isArray(res.data.response) ? res.data.response[0] : res.data.response;
-      const sent = await api.sendMessage(reply || '...', threadID);
+      // Multi-tier API fetch helper for zero downtime
+      async function fetchBabyReply(queryText, name) {
+        const endpoints = [
+          `https://simsimi.cyberbot.top/simsimi?text=${encodeURIComponent(queryText)}&senderName=${encodeURIComponent(name)}`,
+          `https://kaiz-apis.gleeze.com/api/simsimi?ask=${encodeURIComponent(queryText)}`,
+          `https://kaiz-apis.gleeze.com/api/gemini-pro?ask=${encodeURIComponent(queryText)}&uid=${uid}`,
+          `https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(queryText)}&botname=Baby&ownername=Jisan`
+        ];
 
+        for (const ep of endpoints) {
+          try {
+            const res = await axios.get(ep, { timeout: 8000 });
+            const rep = res.data?.response || res.data?.reply || res.data?.message;
+            if (rep && typeof rep === 'string' && rep.trim()) {
+              return Array.isArray(rep) ? rep[0] : rep;
+            }
+          } catch (_) {}
+        }
+        return 'Bolo baby 🥺 ki bolbe?';
+      }
+
+      const replyText = await fetchBabyReply(text, senderName);
+      const sent = await api.sendMessage(replyText, threadID);
       if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
       return sent;
 
     } catch (error) {
       logger.error('bby error', { error: error.message });
-      return api.sendMessage('❌ Baby AI is unavailable right now.', threadID);
+      return api.sendMessage('Bolo baby 🥺 ki bolbe?', threadID);
     }
   },
 
@@ -98,7 +117,6 @@ module.exports = {
     const text = (event.body || '').trim();
     if (!text) return;
 
-    // Get user name for SimSimi personalization
     let senderName = 'Jisan';
     try {
       const user = database.getUser(uid);
@@ -110,13 +128,30 @@ module.exports = {
     } catch (_) {}
 
     try {
-      const res = await axios.get(`${BASE_URL}/simsimi?text=${encodeURIComponent(text)}&senderName=${encodeURIComponent(senderName)}`);
-      const reply = Array.isArray(res.data.response) ? res.data.response[0] : res.data.response;
-      const sent = await api.sendMessage(reply || '...', threadID);
+      const endpoints = [
+        `https://simsimi.cyberbot.top/simsimi?text=${encodeURIComponent(text)}&senderName=${encodeURIComponent(senderName)}`,
+        `https://kaiz-apis.gleeze.com/api/simsimi?ask=${encodeURIComponent(text)}`,
+        `https://kaiz-apis.gleeze.com/api/gemini-pro?ask=${encodeURIComponent(text)}&uid=${uid}`,
+        `https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(text)}&botname=Baby&ownername=Jisan`
+      ];
+
+      let replyText = 'Bolo baby 🥺';
+      for (const ep of endpoints) {
+        try {
+          const res = await axios.get(ep, { timeout: 8000 });
+          const rep = res.data?.response || res.data?.reply || res.data?.message;
+          if (rep && typeof rep === 'string' && rep.trim()) {
+            replyText = Array.isArray(rep) ? rep[0] : rep;
+            break;
+          }
+        } catch (_) {}
+      }
+
+      const sent = await api.sendMessage(replyText, threadID);
       if (sent && sent.messageID) database.setReplyData(sent.messageID, { commandName: 'bby' });
     } catch (error) {
       logger.error('bby handleReply error', { error: error.message });
-      return api.sendMessage('❌ Baby AI is unavailable right now.', threadID);
+      return api.sendMessage('Bolo baby 🥺', threadID);
     }
   }
 };
