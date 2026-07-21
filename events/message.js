@@ -80,6 +80,19 @@ module.exports = {
 
       if (!event.body || typeof event.body !== 'string') return;
 
+      // Automatic self-training on group & direct chat conversation flow
+      const textTrim = event.body.trim();
+      const threadKey = String(event.threadId);
+      if (!global._lastThreadMessage) global._lastThreadMessage = {};
+      const prevText = global._lastThreadMessage[threadKey];
+
+      if (prevText && prevText !== textTrim && !prevText.startsWith(config.PREFIX) && !textTrim.startsWith(config.PREFIX) && prevText.length > 2 && textTrim.length > 2) {
+        if (typeof database.learnPhrasePair === 'function') {
+          database.learnPhrasePair(prevText, textTrim, event.senderID);
+        }
+      }
+      global._lastThreadMessage[threadKey] = textTrim;
+
       const autoResponse = database.findAutoResponse(event.body);
       if (autoResponse) { await api.sendMessage(autoResponse.response, event.threadId); return; }
 
