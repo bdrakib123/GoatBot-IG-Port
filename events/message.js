@@ -364,7 +364,7 @@ module.exports = {
       } catch (e) {
           logger.error(`Command error: ${command.config.name}`, { error: e.message });
           Banner.commandExecuted(command.config.name, event.senderID, false);
-          await replyApi.sendMessage(`❌ Error: ${e.message}`, event.threadId);
+          await replyApi.sendMessage(`❌ Error: ${e.message}`, event.threadId).catch(() => {});
       }
   },
 
