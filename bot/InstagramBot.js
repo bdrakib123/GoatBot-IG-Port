@@ -1162,7 +1162,12 @@ class InstagramBot {
       },
 
       getAvatarUrl: async (userID) => {
-          return `https://www.instagram.com/p/avatar/${userID}`;
+          try {
+              const info = await ig.getUserInfo(userID);
+              return info?.profilePicUrlHd || info?.hdProfilePicUrlInfo?.url || info?.profile_pic_url_hd || info?.profilePicUrl || `https://www.instagram.com/p/avatar/${userID}`;
+          } catch (e) {
+              return `https://www.instagram.com/p/avatar/${userID}`;
+          }
       },
 
       sendTypingIndicator: async (threadID) => {
