@@ -20,17 +20,17 @@ module.exports = {
     api.setMessageReaction('⏳', event.messageID, () => {}, true);
 
     try {
-      const url = `https://hgen.onrender.com/rl?prompt=${encodeURIComponent(prompt)}`;
+      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true&seed=${Date.now()}`;
 
       await message.reply({
-        body: `✅ | NSFW image generated for: "${prompt}"`,
+        body: `✅ | Generated image for: "${prompt}"`,
         attachment: url
       });
       api.setMessageReaction('✅', event.messageID, () => {}, true);
     } catch (err) {
       console.error('Hgen error:', err.message);
       api.setMessageReaction('❌', event.messageID, () => {}, true);
-      message.reply('❌ | Failed to generate NSFW image. Try again later.');
+      message.reply('❌ | Failed to generate image. Try again later.');
     }
   }
 };

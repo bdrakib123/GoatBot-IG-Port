@@ -27,10 +27,10 @@ module.exports = {
     api.setMessageReaction("⏳", event.messageID, () => {}, true);
 
     try {
-      const fullApiUrl = `https://dev.oculux.xyz/api/screenshot?url=${encodeURIComponent(userUrl)}`;
+      const fullApiUrl = `https://image.thum.io/get/width/1200/crop/800/${encodeURIComponent(userUrl)}`;
 
       await message.reply({
-        body: `✨ Screenshot for ${userUrl}`,
+        body: `✨ Screenshot of ${userUrl}:`,
         attachment: fullApiUrl
       });
       api.setMessageReaction("✅", event.messageID, () => {}, true);
