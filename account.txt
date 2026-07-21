@@ -1,10 +1,10 @@
 {
-  "deviceId": "android-fb3c06c10c30db8c",
-  "phoneId": "d03434b5-c3b3-4d0d-95e3-8920fa2fe32c",
-  "uuid": "05018a0d-003e-46a8-8711-69f1e4806c8a",
-  "advertisingId": "85a93591-022a-4b01-aaa5-5c9a30eaba57",
-  "sessionId": "73e86426-a491-4590-bac9-243ecfa5bcf4",
-  "clientSessionId": "f7fbbfc8-a69e-4212-b667-e989b69fc707",
+  "deviceId": "android-baaf7f0129cf041a",
+  "phoneId": "55304038-111a-42d6-ad62-fe9570a3a4b7",
+  "uuid": "3a4acc4b-0f6f-4e1b-b1f4-3c8ed135c543",
+  "advertisingId": "ce6e863f-8fb9-4a7d-a303-9a0523be78b4",
+  "sessionId": "3560780d-aa14-445f-9997-e0db5b351189",
+  "clientSessionId": "b023dbe2-d9fc-4330-8cba-bde1d79f4aec",
   "username": null,
   "userId": null,
   "fullName": null,
@@ -25,8 +25,8 @@
         "secure": true,
         "httpOnly": true,
         "hostOnly": false,
-        "creation": "2026-07-21T11:53:34.620Z",
-        "lastAccessed": "2026-07-21T11:53:34.620Z",
+        "creation": "2026-07-21T12:23:14.171Z",
+        "lastAccessed": "2026-07-21T12:23:14.171Z",
         "sameSite": "none"
       },
       {
@@ -38,8 +38,8 @@
         "secure": true,
         "httpOnly": true,
         "hostOnly": false,
-        "creation": "2026-07-21T11:53:34.620Z",
-        "lastAccessed": "2026-07-21T11:53:34.620Z",
+        "creation": "2026-07-21T12:23:14.172Z",
+        "lastAccessed": "2026-07-21T12:23:14.172Z",
         "sameSite": "none"
       },
       {
@@ -50,8 +50,8 @@
         "path": "/",
         "secure": true,
         "hostOnly": false,
-        "creation": "2026-07-21T11:53:34.621Z",
-        "lastAccessed": "2026-07-21T11:53:34.621Z",
+        "creation": "2026-07-21T12:23:14.172Z",
+        "lastAccessed": "2026-07-21T12:23:14.172Z",
         "sameSite": "none"
       },
       {
@@ -62,8 +62,8 @@
         "path": "/",
         "secure": true,
         "hostOnly": false,
-        "creation": "2026-07-21T11:53:34.621Z",
-        "lastAccessed": "2026-07-21T11:53:34.621Z",
+        "creation": "2026-07-21T12:23:14.172Z",
+        "lastAccessed": "2026-07-21T12:23:14.172Z",
         "sameSite": "lax"
       },
       {
@@ -75,8 +75,8 @@
         "secure": true,
         "httpOnly": true,
         "hostOnly": false,
-        "creation": "2026-07-21T11:53:34.621Z",
-        "lastAccessed": "2026-07-21T11:53:34.621Z",
+        "creation": "2026-07-21T12:23:14.173Z",
+        "lastAccessed": "2026-07-21T12:23:14.173Z",
         "sameSite": "none"
       },
       {
@@ -88,8 +88,8 @@
         "secure": true,
         "httpOnly": true,
         "hostOnly": false,
-        "creation": "2026-07-21T11:53:34.621Z",
-        "lastAccessed": "2026-07-21T11:53:34.621Z",
+        "creation": "2026-07-21T12:23:14.173Z",
+        "lastAccessed": "2026-07-21T12:23:14.173Z",
         "sameSite": "lax"
       },
       {
@@ -100,8 +100,8 @@
         "path": "/",
         "secure": true,
         "hostOnly": false,
-        "creation": "2026-07-21T11:53:34.621Z",
-        "lastAccessed": "2026-07-21T11:53:34.621Z",
+        "creation": "2026-07-21T12:23:14.173Z",
+        "lastAccessed": "2026-07-21T12:23:14.173Z",
         "sameSite": "lax"
       },
       {
@@ -112,8 +112,8 @@
         "path": "/",
         "secure": true,
         "hostOnly": false,
-        "creation": "2026-07-21T11:53:34.621Z",
-        "lastAccessed": "2026-07-21T11:53:34.621Z",
+        "creation": "2026-07-21T12:23:14.173Z",
+        "lastAccessed": "2026-07-21T12:23:14.173Z",
         "sameSite": "lax"
       },
       {
@@ -125,8 +125,8 @@
         "secure": true,
         "httpOnly": true,
         "hostOnly": false,
-        "creation": "2026-07-21T11:53:34.621Z",
-        "lastAccessed": "2026-07-21T11:53:34.621Z",
+        "creation": "2026-07-21T12:23:14.173Z",
+        "lastAccessed": "2026-07-21T12:23:14.173Z",
         "sameSite": "none"
       },
       {
@@ -137,8 +137,8 @@
         "path": "/",
         "secure": true,
         "hostOnly": false,
-        "creation": "2026-07-21T11:53:34.622Z",
-        "lastAccessed": "2026-07-21T11:53:34.622Z",
+        "creation": "2026-07-21T12:23:14.173Z",
+        "lastAccessed": "2026-07-21T12:23:14.173Z",
         "sameSite": "none"
       },
       {
@@ -149,11 +149,11 @@
         "secure": true,
         "httpOnly": true,
         "hostOnly": false,
-        "creation": "2026-07-21T11:53:34.622Z",
-        "lastAccessed": "2026-07-21T11:53:34.622Z",
+        "creation": "2026-07-21T12:23:14.174Z",
+        "lastAccessed": "2026-07-21T12:23:14.174Z",
         "sameSite": "lax"
       }
     ]
   },
-  "userAgent": "Instagram 350.0.0.0.0 Android (14/97619719; 480dpi; 1080x1920; Google; Pixel 4; flame; qcom; en_US; 489720525)"
+  "userAgent": "Instagram 350.0.0.0.0 Android (10/81649586; 480dpi; 1080x1920; Google; Pixel 4; flame; qcom; en_US; 489720525)"
 }

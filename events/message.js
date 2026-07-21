@@ -129,9 +129,10 @@ module.exports = {
       const autoResponse = database.findAutoResponse(event.body);
       if (autoResponse) { await api.sendMessage(autoResponse.response, event.threadId); return; }
 
-      // Handle onReply
-      if (event.replyToItemId) {
-          const replyData = database.getReplyData(event.replyToItemId) || (global.GoatBot.onReply && global.GoatBot.onReply.get(String(event.replyToItemId)));
+      // Handle onReply & tap-to-reply
+      const replyMessageID = event.replyToItemId || (event.messageReply ? (event.messageReply.messageID || event.messageReply.messageId || event.messageReply.item_id) : null);
+      if (replyMessageID) {
+          const replyData = database.getReplyData(replyMessageID) || (global.GoatBot.onReply && global.GoatBot.onReply.get(String(replyMessageID)));
           if (replyData && replyData.commandName) {
               const command = commandLoader.getCommand(replyData.commandName);
               if (command) {
