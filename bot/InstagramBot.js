@@ -892,16 +892,22 @@ class InstagramBot {
         }
       },
 
-      sendPhoto: async (photoPath, threadID) => {
+      sendPhoto: async (arg1, arg2, opts = {}) => {
         try {
+          let threadID = arg1;
+          let photoPath = arg2;
+          if (typeof arg1 === 'string' && (arg1.includes('/') || arg1.includes('\\') || arg1.startsWith('http')) && !/^\d+$/.test(arg1)) {
+            photoPath = arg1;
+            threadID = arg2;
+          }
           await utils.humanDelay();
           if (config.TYPING_INDICATOR) {
             try { ig.sendTypingIndicator(threadID); } catch (_) {}
             await this._sleep(config.TYPING_INDICATOR_DURATION);
           }
-          return await ig.sendPhoto(threadID, photoPath, {});
+          return await ig.sendPhoto(threadID, photoPath, opts);
         } catch (error) {
-          logger.error('Failed to send photo', { error: error.message, threadID });
+          logger.error('Failed to send photo', { error: error.message });
           if (/login_required|not authorized|unauthorized|checkpoint/i.test(error.message)) {
             logger.warn('Auth error detected during sendPhoto, triggering reconnection...');
             this.connectionStatus = 'auth_error';
@@ -913,16 +919,22 @@ class InstagramBot {
         }
       },
 
-      sendVideo: async (videoPath, threadID) => {
+      sendVideo: async (arg1, arg2, opts = {}) => {
         try {
+          let threadID = arg1;
+          let videoPath = arg2;
+          if (typeof arg1 === 'string' && (arg1.includes('/') || arg1.includes('\\') || arg1.startsWith('http')) && !/^\d+$/.test(arg1)) {
+            videoPath = arg1;
+            threadID = arg2;
+          }
           await utils.humanDelay();
           if (config.TYPING_INDICATOR) {
             try { ig.sendTypingIndicator(threadID); } catch (_) {}
             await this._sleep(config.TYPING_INDICATOR_DURATION);
           }
-          return await ig.sendVideo(threadID, videoPath, {});
+          return await ig.sendVideo(threadID, videoPath, opts);
         } catch (error) {
-          logger.error('Failed to send video', { error: error.message, threadID });
+          logger.error('Failed to send video', { error: error.message });
           if (/login_required|not authorized|unauthorized|checkpoint/i.test(error.message)) {
             logger.warn('Auth error detected during sendVideo, triggering reconnection...');
             this.connectionStatus = 'auth_error';
@@ -934,16 +946,22 @@ class InstagramBot {
         }
       },
 
-      sendAudio: async (audioPath, threadID) => {
+      sendAudio: async (arg1, arg2, opts = {}) => {
         try {
+          let threadID = arg1;
+          let audioPath = arg2;
+          if (typeof arg1 === 'string' && (arg1.includes('/') || arg1.includes('\\') || arg1.startsWith('http')) && !/^\d+$/.test(arg1)) {
+            audioPath = arg1;
+            threadID = arg2;
+          }
           await utils.humanDelay();
           if (config.TYPING_INDICATOR) {
             try { ig.sendTypingIndicator(threadID); } catch (_) {}
             await this._sleep(config.TYPING_INDICATOR_DURATION);
           }
-          return await ig.sendVoice(threadID, audioPath, {});
+          return await ig.sendVoice(threadID, audioPath, opts);
         } catch (error) {
-          logger.error('Failed to send audio', { error: error.message, threadID });
+          logger.error('Failed to send audio', { error: error.message });
           if (/login_required|not authorized|unauthorized|checkpoint/i.test(error.message)) {
             logger.warn('Auth error detected during sendAudio, triggering reconnection...');
             this.connectionStatus = 'auth_error';
