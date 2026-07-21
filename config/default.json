@@ -130,8 +130,8 @@
     "webhookUrl": ""
   },
   "AI_FALLBACK": {
-    "enable": false,
-    "command": "gpt"
+    "enable": true,
+    "command": "bby"
   },
   "optionsFca": {
     "online": true,

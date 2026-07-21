@@ -134,7 +134,28 @@ module.exports = {
       const startsWithPrefix = event.body.startsWith(prefix);
       const noPrefixAllowed  = config.NO_PREFIX && PermissionManager.canUseNoPrefix(event.senderID);
 
-      if (!startsWithPrefix && !noPrefixAllowed) return;
+      if (!startsWithPrefix) {
+        // AI Fallback for non-command chat & voice messages
+        if (config.AI_FALLBACK?.enable && (event.body || event.isVoiceMessage)) {
+          const aiCommandName = config.AI_FALLBACK.command || 'bby';
+          const aiCommand = commandLoader.getCommand(aiCommandName);
+          if (aiCommand) {
+            const aiText = event.body.trim() || 'Hello';
+            const aiArgs = aiText.split(/ +/);
+            
+            // If user sent a voice message, respond with voice note via Google TTS
+            if (event.isVoiceMessage) {
+              const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent('Hello! How can I help you today?')}`;
+              return await api.sendVoiceFromUrl(event.threadId, ttsUrl).catch(() => {
+                return api.sendMessage('🎙️ I received your voice note!', event.threadId);
+              });
+            }
+            
+            return await this.executeCommand(aiCommand, { api, event, args: aiArgs, bot, commandName: aiCommandName, logger, database, config, PermissionManager, ConfigManager, prefix });
+          }
+        }
+        if (!noPrefixAllowed) return;
+      }
 
       let rawBody = event.body;
       if (startsWithPrefix) rawBody = event.body.slice(prefix.length);
