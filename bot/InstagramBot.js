@@ -766,12 +766,8 @@ class InstagramBot {
           let text = typeof form === 'object' ? (form.body !== undefined ? form.body : '') : String(form);
           let attachment = typeof form === 'object' ? form.attachment : null;
 
-          // Human-like delay
-          await utils.humanDelay();
-
-          if (config.TYPING_INDICATOR) {
-            try { ig.sendTypingIndicator(threadID); } catch (_) {}
-            await this._sleep(config.TYPING_INDICATOR_DURATION);
+          if (config.TYPING_INDICATOR && threadID) {
+            ig.sendTypingIndicator(threadID).catch(() => {});
           }
 
           let result;
@@ -939,10 +935,8 @@ class InstagramBot {
             photoPath = arg1;
             threadID = arg2;
           }
-          await utils.humanDelay();
-          if (config.TYPING_INDICATOR) {
-            try { ig.sendTypingIndicator(threadID); } catch (_) {}
-            await this._sleep(config.TYPING_INDICATOR_DURATION);
+          if (config.TYPING_INDICATOR && threadID) {
+            ig.sendTypingIndicator(threadID).catch(() => {});
           }
           return await ig.sendPhoto(threadID, photoPath, opts);
         } catch (error) {
@@ -966,10 +960,8 @@ class InstagramBot {
             videoPath = arg1;
             threadID = arg2;
           }
-          await utils.humanDelay();
-          if (config.TYPING_INDICATOR) {
-            try { ig.sendTypingIndicator(threadID); } catch (_) {}
-            await this._sleep(config.TYPING_INDICATOR_DURATION);
+          if (config.TYPING_INDICATOR && threadID) {
+            ig.sendTypingIndicator(threadID).catch(() => {});
           }
           return await ig.sendVideo(threadID, videoPath, opts);
         } catch (error) {
@@ -993,10 +985,8 @@ class InstagramBot {
             audioPath = arg1;
             threadID = arg2;
           }
-          await utils.humanDelay();
-          if (config.TYPING_INDICATOR) {
-            try { ig.sendTypingIndicator(threadID); } catch (_) {}
-            await this._sleep(config.TYPING_INDICATOR_DURATION);
+          if (config.TYPING_INDICATOR && threadID) {
+            ig.sendTypingIndicator(threadID).catch(() => {});
           }
           return await ig.sendVoice(threadID, audioPath, opts);
         } catch (error) {
@@ -1113,10 +1103,8 @@ class InstagramBot {
 
       replyToMessage: async (threadID, text, replyToMessageID) => {
         try {
-          await utils.humanDelay();
-          if (config.TYPING_INDICATOR) {
-            try { ig.sendTypingIndicator(threadID); } catch (_) {}
-            await this._sleep(config.TYPING_INDICATOR_DURATION);
+          if (config.TYPING_INDICATOR && threadID) {
+            ig.sendTypingIndicator(threadID).catch(() => {});
           }
           return await ig.replyToMessage(threadID, text, replyToMessageID);
         } catch (error) {
