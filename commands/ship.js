@@ -38,23 +38,22 @@ module.exports = {
       const name1 = await usersData.getName(user1);
       const name2 = await usersData.getName(user2);
 
-      const userInfo1 = (await api.getUserInfo(user1).catch(() => ({})))[user1] || {};
-      const userInfo2 = (await api.getUserInfo(user2).catch(() => ({})))[user2] || {};
+      let img1 = null, img2 = null;
+      try {
+        const u1 = await api.getAvatarUrl(user1);
+        if (u1 && u1.startsWith('http')) {
+          const res1 = await axios.get(u1, { responseType: 'arraybuffer', timeout: 10000 });
+          img1 = await loadImage(Buffer.from(res1.data));
+        }
+      } catch (_) {}
 
-      const url1 = userInfo1.profilePicUrlHd || userInfo1.hdProfilePicUrlInfo?.url || userInfo1.profile_pic_url_hd || userInfo1.profilePicUrl;
-      const url2 = userInfo2.profilePicUrlHd || userInfo2.hdProfilePicUrlInfo?.url || userInfo2.profile_pic_url_hd || userInfo2.profilePicUrl;
-
-      if (!url1 || !url2) throw new Error('Could not retrieve profile pictures for shipping.');
-
-      const [res1, res2] = await Promise.all([
-        axios.get(url1, { responseType: 'arraybuffer', timeout: 10000 }),
-        axios.get(url2, { responseType: 'arraybuffer', timeout: 10000 })
-      ]);
-
-      const [img1, img2] = await Promise.all([
-        loadImage(Buffer.from(res1.data)),
-        loadImage(Buffer.from(res2.data))
-      ]);
+      try {
+        const u2 = await api.getAvatarUrl(user2);
+        if (u2 && u2.startsWith('http')) {
+          const res2 = await axios.get(u2, { responseType: 'arraybuffer', timeout: 10000 });
+          img2 = await loadImage(Buffer.from(res2.data));
+        }
+      } catch (_) {}
 
       // Calculate deterministic love score based on user IDs
       const combined = (parseInt(user1.slice(-5)) || 123) + (parseInt(user2.slice(-5)) || 456);
@@ -76,7 +75,16 @@ module.exports = {
       ctx.arc(180, 200, 100, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(img1, 80, 100, 200, 200);
+      if (img1) {
+        ctx.drawImage(img1, 80, 100, 200, 200);
+      } else {
+        ctx.fillStyle = '#312E81';
+        ctx.fillRect(80, 100, 200, 200);
+        ctx.fillStyle = '#A5B4FC';
+        ctx.font = 'bold 70px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText((name1[0] || '?').toUpperCase(), 180, 225);
+      }
       ctx.restore();
 
       ctx.lineWidth = 8;
@@ -91,7 +99,16 @@ module.exports = {
       ctx.arc(620, 200, 100, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(img2, 520, 100, 200, 200);
+      if (img2) {
+        ctx.drawImage(img2, 520, 100, 200, 200);
+      } else {
+        ctx.fillStyle = '#312E81';
+        ctx.fillRect(520, 100, 200, 200);
+        ctx.fillStyle = '#F472B6';
+        ctx.font = 'bold 70px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText((name2[0] || '?').toUpperCase(), 620, 225);
+      }
       ctx.restore();
 
       ctx.lineWidth = 8;

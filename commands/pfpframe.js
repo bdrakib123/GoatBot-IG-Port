@@ -22,14 +22,14 @@ module.exports = {
 
     try {
       const rawName = await usersData.getName(mentionID);
-      const userInfoMap = await api.getUserInfo(mentionID).catch(() => ({}));
-      const userInfo = userInfoMap[mentionID] || {};
-      const photoUrl = userInfo.profilePicUrlHd || userInfo.hdProfilePicUrlInfo?.url || userInfo.profile_pic_url_hd || userInfo.profilePicUrl;
-
-      if (!photoUrl) throw new Error('Could not retrieve user profile picture.');
-
-      const res = await axios.get(photoUrl, { responseType: 'arraybuffer', timeout: 10000 });
-      const avatar = await loadImage(Buffer.from(res.data));
+      let avatar = null;
+      try {
+        const photoUrl = await api.getAvatarUrl(mentionID);
+        if (photoUrl && photoUrl.startsWith('http')) {
+          const res = await axios.get(photoUrl, { responseType: 'arraybuffer', timeout: 10000 });
+          avatar = await loadImage(Buffer.from(res.data));
+        }
+      } catch (_) {}
 
       const size = 600;
       const canvas = createCanvas(size, size);
@@ -48,7 +48,16 @@ module.exports = {
       ctx.arc(center, center, radius, 0, Math.PI * 2, true);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(avatar, center - radius, center - radius, radius * 2, radius * 2);
+      if (avatar) {
+        ctx.drawImage(avatar, center - radius, center - radius, radius * 2, radius * 2);
+      } else {
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(center - radius, center - radius, radius * 2, radius * 2);
+        ctx.fillStyle = '#94A3B8';
+        ctx.font = 'bold 120px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText((rawName[0] || '?').toUpperCase(), center, center + 40);
+      }
       ctx.restore();
 
       // Render Frame Overlay
