@@ -579,7 +579,17 @@ class InstagramBot {
             database: require('../utils/database'),
             usersData: require('../utils/database').usersData,
             threadsData: require('../utils/database').threadsData,
-            getLang: (...args) => require('../utils.js').getText(cmd.config.name, ...args)
+            getLang: (...args) => require('../utils.js').getText(cmd.config.name, ...args),
+            message: {
+                reply: (form, callback) => this.api.sendMessage(form, normalizedEvent.threadId, callback, normalizedEvent.messageID),
+                send: (form, callback) => this.api.sendMessage(form, normalizedEvent.threadId, callback),
+                reaction: (emoji, messageID, callback) => this.api.setMessageReaction(emoji, messageID || normalizedEvent.messageID, callback),
+                unsend: (messageID, callback) => this.api.unsendMessage(messageID || normalizedEvent.messageID, callback),
+                err: async (err) => {
+                    const msg = typeof err === 'object' ? err.message || JSON.stringify(err) : String(err);
+                    return await this.api.sendMessage(`❌ Error: ${msg}`, normalizedEvent.threadId);
+                }
+            }
           }).catch(error => logger.error(`onChat error in ${name}`, { error: error.message }));
         }
       }
@@ -603,7 +613,18 @@ class InstagramBot {
                   bot: this,
                   database,
                   usersData: database.usersData,
-                  threadsData: database.threadsData
+                  threadsData: database.threadsData,
+                  getLang: (...args) => require('../utils.js').getText(cmd.config.name, ...args),
+                  message: {
+                      reply: (form, callback) => this.api.sendMessage(form, event.threadID || event.threadId, callback, event.messageID),
+                      send: (form, callback) => this.api.sendMessage(form, event.threadID || event.threadId, callback),
+                      reaction: (emoji, messageID, callback) => this.api.setMessageReaction(emoji, messageID || event.messageID, callback),
+                      unsend: (messageID, callback) => this.api.unsendMessage(messageID || event.messageID, callback),
+                      err: async (err) => {
+                          const msg = typeof err === 'object' ? err.message || JSON.stringify(err) : String(err);
+                          return await this.api.sendMessage(`❌ Error: ${msg}`, event.threadID || event.threadId);
+                      }
+                  }
               }).catch(e => logger.error(`onEvent error in ${name}`, { error: e.message }));
           }
       }

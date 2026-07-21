@@ -90,10 +90,31 @@ module.exports = {
               const command = commandLoader.getCommand(replyData.commandName);
               if (command) {
                   const replyParams = {
-                      api, event, bot, commandName: replyData.commandName,
-                      logger, database, usersData: database.usersData,
+                      api: replyApi,
+                      event,
+                      args: event.body ? event.body.trim().split(/ +/) : [],
+                      bot,
+                      commandName: replyData.commandName,
+                      logger,
+                      database,
+                      usersData: database.usersData,
                       threadsData: database.threadsData,
-                      Reply: replyData, replyData
+                      Reply: replyData,
+                      replyData,
+                      getLang: (...args) => require('../utils.js').getText(replyData.commandName, ...args),
+                      message: {
+                          reply: (form, callback) => replyApi.sendMessage(form, event.threadId, callback, event.messageID),
+                          send: (form, callback) => replyApi.sendMessage(form, event.threadId, callback),
+                          reaction: (emoji, messageID, callback) => api.setMessageReaction(emoji, messageID || event.messageID, callback),
+                          unsend: (messageID, callback) => api.unsendMessage(messageID || event.messageID, callback),
+                          err: async (err) => {
+                              const msg = typeof err === 'object' ? err.message || JSON.stringify(err) : String(err);
+                              return await replyApi.sendMessage(`❌ Error: ${msg}`, event.threadId);
+                          },
+                          SyntaxError: async () => {
+                              return await replyApi.sendMessage(`❌ Syntax Error!\nUse: ${prefix}help ${replyData.commandName} for usage instructions.`, event.threadId);
+                          }
+                      }
                   };
                   if (typeof command.onReply === 'function') return await command.onReply(replyParams);
                   if (typeof command.handleReply === 'function') return await command.handleReply(replyParams);

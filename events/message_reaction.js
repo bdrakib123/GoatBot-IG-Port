@@ -15,10 +15,28 @@ module.exports = {
           const command = bot.commandLoader.getCommand(reactionData.commandName);
           if (command) {
               const reactionParams = {
-                  api: bot.api, event, bot, commandName: reactionData.commandName,
-                  logger, database, usersData: database.usersData,
+                  api: bot.api,
+                  event,
+                  args: [],
+                  bot,
+                  commandName: reactionData.commandName,
+                  logger,
+                  database,
+                  usersData: database.usersData,
                   threadsData: database.threadsData,
-                  Reaction: reactionData, reactionData
+                  Reaction: reactionData,
+                  reactionData,
+                  getLang: (...args) => require('../utils.js').getText(reactionData.commandName, ...args),
+                  message: {
+                      reply: (form, callback) => bot.api.sendMessage(form, threadId, callback, messageID),
+                      send: (form, callback) => bot.api.sendMessage(form, threadId, callback),
+                      reaction: (emoji, mID, callback) => bot.api.setMessageReaction(emoji, mID || messageID, callback),
+                      unsend: (mID, callback) => bot.api.unsendMessage(mID || messageID, callback),
+                      err: async (err) => {
+                          const msg = typeof err === 'object' ? err.message || JSON.stringify(err) : String(err);
+                          return await bot.api.sendMessage(`❌ Error: ${msg}`, threadId);
+                      }
+                  }
               };
               if (typeof command.onReaction === 'function') await command.onReaction(reactionParams);
               else if (typeof command.handleReaction === 'function') await command.handleReaction(reactionParams);
