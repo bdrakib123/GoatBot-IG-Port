@@ -1,69 +1,89 @@
 const axios = require("axios");
-
-const noobcore = "https://raw.githubusercontent.com/noobcore404/NC-STORE/main/NCApiUrl.json";
-
-async function getRenzApi() {
-  const res = await axios.get(noobcore, { timeout: 10000 });
-  if (!res.data?.renz) throw new Error("Renz API not found in JSON");
-  return res.data.renz;
-}
+const Jimp = require("jimp");
+const path = require("path");
+const os = require("os");
 
 module.exports = {
   config: {
     name: "edit",
-    aliases: ["nanobanana", "gptimage"],
-    version: "1.2",
-    author: "Gtajisan",
+    aliases: ["imgedit", "photoedit", "filterimg"],
+    version: "2.0.0",
+    author: "Jisan",
     cooldown: 5,
     role: 0,
-    description: "Generate or edit images using text prompts",
+    description: "Edit photos with AI prompts or apply filters (grayscale, invert, sepia, blur, flip, rotate)",
     category: "image",
-    usage: "{pn} <prompt> | Reply to an image with your prompt"
+    usage: "edit <prompt> | edit [grayscale|invert|sepia|blur|flip|rotate] (reply to an image)"
   },
 
   onStart: async function ({ api, event, args, message, logger }) {
-    const prompt = args.join(" ").trim();
-    if (!prompt) {
+    let imageUrl = null;
+
+    const reply = event.messageReply;
+    if (reply && Array.isArray(reply.attachments) && reply.attachments.length > 0) {
+      const photo = reply.attachments.find(a => a.type === "photo" || a.type === "image");
+      if (photo) imageUrl = photo.url;
+    } else if (args[0] && args[0].startsWith("http")) {
+      imageUrl = args.shift();
+    }
+
+    const prompt = args.join(" ").trim().toLowerCase();
+
+    if (!prompt && !imageUrl) {
       return message.reply(
-        "❌ Please provide a prompt.\n\nExamples:\n!edit a cyberpunk city\n!edit make me anime (reply to an image)"
+        "❌ Please provide a prompt or reply to an image!\n\nExamples:\n!edit a futuristic neon city\n!edit grayscale (reply to an image)\n!edit make it anime style (reply to an image)"
       );
     }
 
     message.reaction("⏳");
 
     try {
-      const BASE_URL = await getRenzApi();
-      let apiURL = `${BASE_URL}/api/gptimage?prompt=${encodeURIComponent(prompt)}`;
+      // 1. If user specified a Jimp local filter on a replied image
+      const localFilters = ["grayscale", "greyscale", "invert", "sepia", "blur", "flip", "rotate", "pixelate"];
+      const filterMatch = localFilters.find(f => prompt.includes(f));
 
-      const reply = event.messageReply;
-      let hasImageReply = false;
-      if (reply && Array.isArray(reply.attachments) && reply.attachments.length > 0) {
-        const photo = reply.attachments.find(a => a.type === "photo" || a.type === "image");
-        if (photo) {
-          hasImageReply = true;
-          apiURL += `&ref=${encodeURIComponent(photo.url)}`;
-          if (photo.width && photo.height) {
-            apiURL += `&width=${photo.width}&height=${photo.height}`;
-          }
-        }
+      if (imageUrl && filterMatch) {
+        message.reply(`🖌 Applying local filter [${filterMatch.toUpperCase()}]...`);
+        const res = await axios.get(imageUrl, { responseType: "arraybuffer" });
+        const img = await Jimp.read(Buffer.from(res.data));
+
+        if (filterMatch === "grayscale" || filterMatch === "greyscale") img.grayscale();
+        else if (filterMatch === "invert") img.invert();
+        else if (filterMatch === "sepia") img.sepia();
+        else if (filterMatch === "blur") img.blur(10);
+        else if (filterMatch === "flip") img.flip(true, false);
+        else if (filterMatch === "rotate") img.rotate(90);
+        else if (filterMatch === "pixelate") img.pixelate(8);
+
+        const tempPath = path.join(os.tmpdir(), `edit_${Date.now()}.png`);
+        await img.writeAsync(tempPath);
+
+        message.reaction("✅");
+        return message.reply({
+          body: `✅ Filter [${filterMatch.toUpperCase()}] applied successfully!`,
+          attachment: tempPath
+        });
       }
 
-      if (!hasImageReply) {
-        apiURL += `&width=512&height=512`;
+      // 2. AI Prompted Photo Edit or Image Generation
+      const fullPrompt = prompt || "high quality 4k photo edit";
+      let editedUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?nologo=true&seed=${Date.now()}`;
+      if (imageUrl) {
+        editedUrl += `&image=${encodeURIComponent(imageUrl)}`;
       }
-
-      await message.reply({
-        body: hasImageReply
-          ? `🖌 Image edited successfully.\nPrompt: ${prompt}\n\n(Tap to hold to save/view image)`
-          : `🖼 Image generated successfully.\nPrompt: ${prompt}\n\n(Tap to hold to save/view image)`,
-        attachment: apiURL
-      });
 
       message.reaction("✅");
+      return message.reply({
+        body: imageUrl
+          ? `🖌 AI Photo Edit Result:\nPrompt: "${fullPrompt}"`
+          : `🖼 AI Generated Image:\nPrompt: "${fullPrompt}"`,
+        attachment: editedUrl
+      });
+
     } catch (err) {
-      logger.error("EDIT Command Error:", err?.response?.data || err.message);
+      logger.error("EDIT Command Error:", err.message);
       message.reaction("❌");
-      message.reply("❌ Failed to process image. Please try again later.");
+      message.reply("❌ Failed to process image. Please try again.");
     }
   }
 };

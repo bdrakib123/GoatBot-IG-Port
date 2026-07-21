@@ -537,8 +537,11 @@ async function getStreamFromURL(url = "", pathName = "", options = {}) {
 			responseType: "stream",
 			...options
 		});
-		if (!pathName)
-			pathName = utils.randomString(10) + (response.headers["content-type"] ? '.' + utils.getExtFromMimeType(response.headers["content-type"]) : ".noext");
+		if (!pathName) {
+			const rawMime = (response.headers["content-type"] || "").split(";")[0].trim();
+			const ext = utils.getExtFromMimeType(rawMime) || "png";
+			pathName = utils.randomString(10) + "." + ext;
+		}
 		response.data.path = pathName;
 		return response.data;
 	}
