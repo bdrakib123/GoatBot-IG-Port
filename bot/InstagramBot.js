@@ -15,6 +15,16 @@ const Banner        = require('../utils/banner');
 
 class InstagramBot {
   constructor() {
+    global.utils           = require('../utils.js');
+    global.GoatBot         = global.GoatBot || {};
+    global.GoatBot.config  = config;
+    global.GoatBot.onReply = global.GoatBot.onReply || new Map();
+    global.GoatBot.onReaction = global.GoatBot.onReaction || new Map();
+    global.GoatBot.onEvent = global.GoatBot.onEvent || new Map();
+    global.GoatBot.onChat  = global.GoatBot.onChat || new Map();
+    global.GoatBot.instance = this;
+    global.client          = global.client || {};
+
     this.ig                = null;
     this.api               = null;
     this.userID            = null;
