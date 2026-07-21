@@ -154,11 +154,14 @@ module.exports = {
       try {
         targetData = await usersData.get(targetID);
       } catch (e) {
-        return message.reply("❌ Could not fetch user data. They might not be in the database yet!");
+        targetData = { name: "Opponent", data: {} };
       }
 
-      if (!targetData || !targetData.data?.dih) {
-        return message.reply("This user doesn't have a dih yet!");
+      if (!targetData) targetData = { name: "Opponent", data: {} };
+      if (!targetData.data) targetData.data = {};
+      if (!targetData.data.dih) {
+        targetData.data.dih = { length: Math.floor(Math.random() * 8) + 5, lastGrowth: 0, stats: { wins: 0, losses: 0, totalAttacks: 0 } };
+        await usersData.set(targetID, { data: targetData.data });
       }
 
       if (userData.data.dih.length <= 0) {
